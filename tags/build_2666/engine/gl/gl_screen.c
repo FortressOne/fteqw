@@ -1,0 +1,362 @@
+/*
+Copyright (C) 1996-1997 Id Software, Inc.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+*/
+
+// screen.c -- master for refresh, status bar, console, chat, notify, etc
+
+#include "quakedef.h"
+#ifdef RGLQUAKE
+#include "glquake.h"
+
+#include <time.h>
+
+void GLSCR_UpdateScreen (void);
+void GLDraw_TextureMode_Changed (void);
+
+
+extern qboolean	scr_drawdialog;
+
+extern cvar_t gl_triplebuffer;
+extern cvar_t          scr_fov;
+
+extern qboolean        scr_initialized;
+extern float oldsbar;
+extern qboolean        scr_drawloading;
+
+extern float   oldfov;
+
+
+extern int scr_chatmode;
+extern cvar_t scr_chatmodecvar;
+
+
+
+void RSpeedShow(void)
+{
+	int i;
+	static int samplerspeeds[RSPEED_MAX];
+	static int samplerquant[RQUANT_MAX];
+	char *RSpNames[RSPEED_MAX];
+	char *RQntNames[RQUANT_MAX];
+	char *s;
+	static int framecount;
+
+	if (!r_speeds.value)
+		return;
+
+	memset(RSpNames, 0, sizeof(RSpNames));
+	RSpNames[RSPEED_TOTALREFRESH] = "Total refresh";
+	RSpNames[RSPEED_PROTOCOL] = "Protocol";
+	RSpNames[RSPEED_LINKENTITIES] = "Entity setup";
+	RSpNames[RSPEED_WORLDNODE] = "World walking";
+	RSpNames[RSPEED_WORLD] = "World rendering";
+	RSpNames[RSPEED_DYNAMIC] = "Lightmap updates";
+	RSpNames[RSPEED_PARTICLES] = "Particle physics and sorting";
+	RSpNames[RSPEED_PARTICLESDRAW] = "Particle drawing";
+	RSpNames[RSPEED_2D] = "2d elements";
+	RSpNames[RSPEED_SERVER] = "Server";
+
+	RSpNames[RSPEED_DRAWENTITIES] = "Entity rendering";
+
+	RSpNames[RSPEED_PALETTEFLASHES] = "Palette flashes";
+	RSpNames[RSPEED_STENCILSHADOWS] = "Stencil Shadows";
+
+	RSpNames[RSPEED_FULLBRIGHTS] = "World fullbrights";
+
+	RSpNames[RSPEED_FINISH] = "Waiting for card to catch up";
+
+	RQntNames[RQUANT_MSECS] = "Microseconds";
+	RQntNames[RQUANT_EPOLYS] = "Entity Polys";
+	RQntNames[RQUANT_WPOLYS] = "World Polys";
+	RQntNames[RQUANT_SHADOWFACES] = "Shadow Faces";
+	RQntNames[RQUANT_SHADOWEDGES] = "Shadow edges";
+	RQntNames[RQUANT_LITFACES] = "Lit faces";
+
+	for (i = 0; i < RSPEED_MAX; i++)
+	{
+		s = va("%i %-30s", samplerspeeds[i], RSpNames[i]);
+		Draw_String(vid.width-strlen(s)*8, i*8, s);
+	}
+	for (i = 0; i < RQUANT_MAX; i++)
+	{
+		s = va("%i %-30s", samplerquant[i], RQntNames[i]);
+		Draw_String(vid.width-strlen(s)*8, (i+RSPEED_MAX)*8, s);
+	}
+	s = va("%f %-30s", 100000000.0f/samplerspeeds[RSPEED_TOTALREFRESH], "Framerate");
+	Draw_String(vid.width-strlen(s)*8, (i+RSPEED_MAX)*8, s);
+
+	if (framecount++>=100)
+	{
+		for (i = 0; i < RSPEED_MAX; i++)
+		{
+			samplerspeeds[i] = rspeeds[i];
+			rspeeds[i] = 0;
+		}
+		for (i = 0; i < RQUANT_MAX; i++)
+		{
+			samplerquant[i] = rquant[i];
+			rquant[i] = 0;
+		}
+		framecount=0;
+	}
+}
+
+/*
+==================
+SCR_UpdateScreen
+
+This is called every frame, and can also be called explicitly to flush
+text to the screen.
+
+WARNING: be very careful calling this from elsewhere, because the refresh
+needs almost the entire 256k of stack space!
+==================
+*/
+
+void GLSCR_UpdateScreen (void)
+{
+	extern cvar_t vid_conwidth, vid_conheight, gl_texturemode, vid_conautoscale;
+	int uimenu;
+#ifdef TEXTEDITOR
+	extern qboolean editormodal;
+#endif
+	qboolean nohud;
+	RSpeedMark();
+
+	if (block_drawing)
+	{
+		RSpeedEnd(RSPEED_TOTALREFRESH);
+		return;
+	}
+
+	if (vid_conautoscale.modified)
+	{
+		float xratio, yratio = 0;
+
+		xratio = vid_conautoscale.value;
+		if (xratio > 0)
+		{
+			char *s = strchr(vid_conautoscale.string, ' ');
+			if (s)
+				yratio = atof(s + 1);
+			
+			if (yratio <= 0)
+				yratio = xratio;
+
+			xratio = 1 / xratio;
+			yratio = 1 / yratio;
+
+			Cvar_SetValue(&vid_conwidth, glwidth * xratio);
+			Cvar_SetValue(&vid_conheight, glheight * yratio);
+		}
+
+		vid_conautoscale.modified = false;
+	}
+
+	if (vid_conwidth.modified || vid_conheight.modified)
+	{
+		//let let the user be too crazy
+		if (vid_conwidth.value > 2048)	//anything higher is unreadable.
+			Cvar_Set(&vid_conwidth, "2048");
+		if (vid_conheight.value > 1536)	//anything higher is unreadable.
+			Cvar_Set(&vid_conheight, "1536");
+		if (vid_conwidth.value < 320)	//lower would be wrong
+			Cvar_Set(&vid_conwidth, "320");
+		if (vid_conheight.value < 200)	//lower would be wrong
+			Cvar_Set(&vid_conheight, "200");
+
+		vid_conwidth.modified = false;
+		vid_conheight.modified = false;
+
+//		vid.width = vid.conwidth = (glwidth - 320) * gl_2dscale.value + 320;
+//		vid.height = vid.conheight = (glheight - 240) * gl_2dscale.value + 240;
+
+		vid.width = vid.conwidth = vid_conwidth.value;
+		vid.height = vid.conheight = vid_conheight.value;
+
+		vid.recalc_refdef = true;
+		Con_CheckResize();
+
+#ifdef PLUGINS
+		Plug_ResChanged();
+#endif
+		GL_Set2D();
+	}
+
+	vid.numpages = 2 + gl_triplebuffer.value;
+
+	scr_copytop = 0;
+	scr_copyeverything = 0;
+
+	if (scr_disabled_for_loading)
+	{
+		extern float scr_disabled_time;
+		if (Sys_DoubleTime() - scr_disabled_time > 60 || key_dest != key_game)
+		{
+			scr_disabled_for_loading = false;
+		}
+		else
+		{		
+			GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
+			SCR_DrawLoading ();
+			GL_EndRendering ();	
+			GL_DoSwap();
+			RSpeedEnd(RSPEED_TOTALREFRESH);
+			return;
+		}
+	}
+
+	if (!scr_initialized || !con_initialized)
+	{
+		RSpeedEnd(RSPEED_TOTALREFRESH);
+		return;                         // not initialized yet
+	}
+
+#ifdef VM_UI
+	uimenu = UI_MenuState();
+#else
+	uimenu = 0;
+#endif
+
+
+	if (oldsbar != cl_sbar.value) {
+		oldsbar = cl_sbar.value;
+		vid.recalc_refdef = true;
+	}
+	if (gl_texturemode.modified)
+		GLDraw_TextureMode_Changed();
+
+	GL_BeginRendering (&glx, &gly, &glwidth, &glheight);
+
+#ifdef TEXTEDITOR
+	if (editormodal)
+	{
+		Editor_Draw();
+		GLV_UpdatePalette ();
+#if defined(_WIN32) && defined(RGLQUAKE)
+		Media_RecordFrame();
+#endif
+		GLR_BrightenScreen();
+
+		if (key_dest == key_console)
+			Con_DrawConsole(vid_conheight.value/2, false);
+		GL_EndRendering ();	
+		GL_DoSwap();
+		RSpeedEnd(RSPEED_TOTALREFRESH);
+		return;
+	}
+#endif
+	if (Media_ShowFilm())
+	{
+		M_Draw(0);
+		GLV_UpdatePalette ();
+#if defined(_WIN32) && defined(RGLQUAKE)
+		Media_RecordFrame();
+#endif
+		GLR_BrightenScreen();
+		GL_EndRendering ();	
+		GL_DoSwap();
+		RSpeedEnd(RSPEED_TOTALREFRESH);
+		return;
+	}
+	
+	//
+	// determine size of refresh window
+	//
+	if (oldfov != scr_fov.value)
+	{
+		oldfov = scr_fov.value;
+		vid.recalc_refdef = true;
+	}
+
+	if (vid.recalc_refdef || scr_viewsize.modified)
+		SCR_CalcRefdef ();
+
+//
+// do 3D refresh drawing, and then update the screen
+//
+	SCR_SetUpToDrawConsole ();
+
+	nohud = false;
+
+#ifdef VM_CG
+	if (CG_Refresh())
+		nohud = true;
+	else
+#endif
+#ifdef CSQC_DAT
+		if (cls.state == ca_active && CSQC_DrawView())
+		nohud = true;
+	else
+#endif
+		if (r_worldentity.model && uimenu != 1)
+		{
+		V_RenderView ();
+//		Q1BSP_TestClipDecal();
+		}
+	else
+		GL_DoSwap();
+
+	GL_Set2D ();
+
+	GLR_BrightenScreen();
+
+	if (!nohud)
+		SCR_TileClear ();
+
+	SCR_DrawTwoDimensional(uimenu, nohud);
+
+	GLV_UpdatePalette ();
+#if defined(_WIN32) && defined(RGLQUAKE)
+	Media_RecordFrame();
+#endif
+
+	RSpeedEnd(RSPEED_TOTALREFRESH);
+	RSpeedShow();
+
+	GL_EndRendering ();
+}
+
+
+char *GLVID_GetRGBInfo(int prepadbytes, int *truewidth, int *trueheight)
+{	//returns a BZ_Malloced array
+	extern qboolean gammaworks;
+	int i, c;
+	qbyte *ret = BZ_Malloc(prepadbytes + glwidth*glheight*3);
+
+	qglReadPixels (glx, gly, glwidth, glheight, GL_RGB, GL_UNSIGNED_BYTE, ret + prepadbytes); 
+
+	*truewidth = glwidth;
+	*trueheight = glheight;
+
+	if (gammaworks)
+	{
+		c = prepadbytes+glwidth*glheight*3;
+		for (i=prepadbytes ; i<c ; i+=3)
+		{
+			extern qbyte		gammatable[256];
+			ret[i+0] = gammatable[ret[i+0]];
+			ret[i+1] = gammatable[ret[i+1]];
+			ret[i+2] = gammatable[ret[i+2]];
+		}
+	}
+	
+	return ret;
+}
+#endif

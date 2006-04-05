@@ -1,0 +1,67 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ftequake", "ftequake.vcproj", "{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1722C3EE-4469-4757-9CE1-7B477A7A5E5B} = {1722C3EE-4469-4757-9CE1-7B477A7A5E5B}
+	EndProjectSection
+EndProject
+Project("{059D6162-CD51-11D0-AE1F-00A0C90FFFC3}") = "gas2masm", "..\gas2masm\gas2masm.dsp", "{1722C3EE-4469-4757-9CE1-7B477A7A5E5B}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{059D6162-CD51-11D0-AE1F-00A0C90FFFC3}") = "qcc", "..\qclib\qcc.dsp", "{C3A7EAB8-C553-49E5-A2EC-7B4439671F84}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Debug Dedicated Server = Debug Dedicated Server
+		Debug Dedicated ServerQ3 = Debug Dedicated ServerQ3
+		GLDebug = GLDebug
+		GLDebugQ3 = GLDebugQ3
+		GLRelease = GLRelease
+		MDebug = MDebug
+		MinGLDebug = MinGLDebug
+		MinGLRelease = MinGLRelease
+		MinSW = MinSW
+		MRelease = MRelease
+		Release = Release
+		Release Dedicated Server = Release Dedicated Server
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Debug.ActiveCfg = GLRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Debug.Build.0 = GLRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Debug Dedicated Server.ActiveCfg = Debug Dedicated Server|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Debug Dedicated Server.Build.0 = Debug Dedicated Server|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Debug Dedicated ServerQ3.ActiveCfg = Debug Dedicated ServerQ3|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Debug Dedicated ServerQ3.Build.0 = Debug Dedicated ServerQ3|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.GLDebug.ActiveCfg = GLDebug|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.GLDebug.Build.0 = GLDebug|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.GLDebugQ3.ActiveCfg = GLDebugQ3|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.GLDebugQ3.Build.0 = GLDebugQ3|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.GLRelease.ActiveCfg = GLRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.GLRelease.Build.0 = GLRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MDebug.ActiveCfg = MDebug|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MDebug.Build.0 = MDebug|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MinGLDebug.ActiveCfg = MinGLDebug|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MinGLDebug.Build.0 = MinGLDebug|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MinGLRelease.ActiveCfg = MinGLRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MinGLRelease.Build.0 = MinGLRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MinSW.ActiveCfg = MinSW|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MinSW.Build.0 = MinSW|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MRelease.ActiveCfg = MRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.MRelease.Build.0 = MRelease|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Release.ActiveCfg = Release|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Release.Build.0 = Release|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Release Dedicated Server.ActiveCfg = Release Dedicated Server|Win32
+		{BE6B9C11-C7A6-45D4-8193-64682FDC6B1C}.Release Dedicated Server.Build.0 = Release Dedicated Server|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal
