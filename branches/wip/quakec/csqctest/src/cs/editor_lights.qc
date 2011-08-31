@@ -5,15 +5,23 @@ enum
 	lf_colour=1,
 	lf_radius=2,
 	lf_flags=3,
-	lf_style=4
+	lf_style=4,
+	lf_angles=5,
+	lf_fov=6
 };
 float(float l, float f) dl_getf = #372;
 vector(float l, float f) dl_getv = #372;
 void(float l, float f, float v) dl_setf = #373;
 void(float l, float f, vector v) dl_setv = #373;
 
-/*If you want to edit lights for hexen2, edit this cvar, use models/s_light.spr or something.*/
-DEFCVAR_STRING(cg_editor_lightmodel, "progs/s_light.spr")
+float LF_D	= 1; /*ppl if r_shadow_realtime_dlight*/
+float LF_W	= 2; /*ppl if r_shadow_realtime_world*/
+float LF_L	= 4; /*applies to lightmaps*/
+float LF_F	= 8; /*draw flashblends/coronas*/
+float LF_C = 256; /*casts shadows*/
+float LF_S	= 512; /*shadowmapping instead*/
+
+var string autocvar_cg_editor_lightmodel = "progs/s_light.spr";
 
 static float selectedlight;
 static float editfield;
@@ -26,7 +34,8 @@ void() editor_lights_add =
 		tempent = spawn();
 
 	l = dl_getf(-1, -1);
-	setmodel(tempent, CVARS(cg_editor_lightmodel));
+	precache_model(autocvar_cg_editor_lightmodel); /*just to silence it*/
+	setmodel(tempent, autocvar_cg_editor_lightmodel);
 	while(l > 0)
 	{
 		l = l-1;
@@ -37,7 +46,7 @@ void() editor_lights_add =
 			tempent.effects |= 8192;
 		}
 		else
-			tempent.effects (-) 8192;
+			tempent.effects &~= 8192;
 		if (!dl_getf(l, lf_radius))
 			continue;
 		setorigin(tempent, dl_getv(l, lf_origin));
@@ -45,7 +54,7 @@ void() editor_lights_add =
 	}
 };
 
-static string fldname[8] = {
+static string fldname[10] = {
 	"bad",
 	"num",
 	"org",
@@ -53,6 +62,8 @@ static string fldname[8] = {
 	"rad",
 	"flg",
 	"sty",
+	"ang",
+	"fov",
 	"???"
 };
 static string(float fld, float foredit) readfield =
@@ -71,14 +82,20 @@ static string(float fld, float foredit) readfield =
 		return ftos(dl_getf(selectedlight, lf_radius));
 	case 5:
 		float fl = dl_getf(selectedlight, lf_flags);
-		if (foredit)
-			return ftos(fl);
-		return strcat(	((fl & 1)?" alwaysvisible":""),
-					((fl & 2)?" realtime":""),
-					((fl & 65536)?" no-shadows":"")
-				 );
+		string ret;
+		ret = strcat(ret, (fl & LF_D)?"d":"D");
+		ret = strcat(ret, (fl & LF_W)?"w":"W");
+		ret = strcat(ret, (fl & LF_L)?"l":"L");
+		ret = strcat(ret, (fl & LF_F)?"f":"F");
+		ret = strcat(ret, (fl & LF_C)?"c":"C");
+		ret = strcat(ret, (fl & LF_S)?"s":"S");
+		return ret;
 	case 6:
 		return ftos(dl_getf(selectedlight, lf_style));
+	case 7:
+		return vtos(dl_getv(selectedlight, lf_angles));
+	case 8:
+		return ftos(dl_getf(selectedlight, lf_fov));
 	default:
 		return "";
 	}
@@ -101,13 +118,25 @@ static void(float fld, string newval) writefield =
 		dl_setf(selectedlight, lf_radius, stof(newval));
 		return;
 	case 5:
-		dl_getf(selectedlight, lf_flags, stof(newval));
+		float fl;
+		if (strstrofs(newval, "d")>=0) fl |= LF_D;
+		if (strstrofs(newval, "w")>=0) fl |= LF_W;
+		if (strstrofs(newval, "l")>=0) fl |= LF_L;
+		if (strstrofs(newval, "f")>=0) fl |= LF_F;
+		if (strstrofs(newval, "c")>=0) fl |= LF_C;
+		if (strstrofs(newval, "s")>=0) fl |= LF_S;
+		dl_setf(selectedlight, lf_flags, fl);
 		return;
 	case 6:
-		dl_getf(selectedlight, lf_style, stof(newval));
+		dl_setf(selectedlight, lf_style, stof(newval));
 		return;
+	case 7:
+		dl_setv(selectedlight, lf_angles, stov(newval));
+		return;
+	case 8:
+		dl_setf(selectedlight, lf_fov, stof(newval));
 	default:
-		return "";
+		return;
 	}
 };
 
@@ -117,7 +146,7 @@ void() editor_lights_overlay =
 	string s;
 //void(vector position, string text, vector scale, vector rgb, float alpha, ...) drawrawstring
 	drawrawstring('0 0 0', "LIGHTS EDITOR", '8 8 0', '1 1 1', 1);
-	for (i = 1; i < 8; i++)
+	for (i = 1; i <= 8; i++)
 	{
 		if (editfield == i)
 			s = editvalue;
@@ -126,11 +155,19 @@ void() editor_lights_overlay =
 		s = strcat(ftos(i), " ", fldname[i], ": ", s);
 		drawrawstring('0 32 0' + '0 8 0' * i, s, '8 8 0', ((editfield == i)?'1 0 0':'1 1 1'), 1);
 	}
+
+	drawrawstring('0 40 0' + '0 8 0' * i++, "+/- change selected light\n", '8 8 0', '1 1 1', 1);
+	drawrawstring('0 40 0' + '0 8 0' * i++, "s selects closest light\n", '8 8 0', '1 1 1', 1);	
+	drawrawstring('0 40 0' + '0 8 0' * i++, "m moves the light to the crosshair\n", '8 8 0', '1 1 1', 1);
+	drawrawstring('0 40 0' + '0 8 0' * i++, "i inserts new light\n", '8 8 0', '1 1 1', 1);
+	drawrawstring('0 40 0' + '0 8 0' * i++, "p points the light to aim at the crosshair\n", '8 8 0', '1 1 1', 1);
+	drawrawstring('0 40 0' + '0 8 0' * i++, "[ and ] move the light towards/away from indicated plane\n", '8 8 0', '1 1 1', 1);
+	drawrawstring('0 40 0' + '0 8 0' * i++, "don't forget to save\n", '8 8 0', '1 1 1', 1);
 };
 
 static void(vector fwd, vector vorg) selectbestlight =
 {
-	float l, b=selectedlight, d, bd = 0;
+	float l, b=selectedlight, d, bd;
 	vector ldir;
 	l = dl_getf(-1, -1);
 	while(l > 0)
@@ -201,8 +238,22 @@ float(float keyc, float unic) editor_lights_key =
 		v = getviewpropv(15);
 		o = getviewpropv(11);
 		makevectors(v);
-		traceline(o, o + v_forward*8192, true, world);
+		traceline(o, o + v_forward*8192, TRUE, world);
 		dl_setv(selectedlight, lf_origin, trace_endpos + trace_plane_normal*4);
+	}
+	else if (keyc == 'p')
+	{
+		v = getviewpropv(15);
+		o = getviewpropv(11);
+		makevectors(v);
+		traceline(o, o + v_forward*8192, TRUE, world);
+		vector ang = vectoangles((trace_endpos + trace_plane_normal*4) - dl_getv(selectedlight, lf_origin));
+		ang_x *= -1;
+		dl_setv(selectedlight, lf_angles, ang);
+
+		/*if we're pointing the light at something, it should probably have a fov*/
+		if (!dl_getf(selectedlight, lf_origin))
+			dl_setf(selectedlight, lf_fov, 90);
 	}
 	else if (keyc == 'i')
 	{
@@ -210,11 +261,17 @@ float(float keyc, float unic) editor_lights_key =
 		{
 			if (!dl_getf(selectedlight, lf_radius))
 			{
+				/*clear the light properties*/
 				dl_setf(selectedlight, lf_radius, 300);
+				dl_setv(selectedlight, lf_colour, '1 1 1');
+				dl_setf(selectedlight, lf_fov, 0);
+				dl_setf(selectedlight, lf_style, 0);
+				dl_setv(selectedlight, lf_angles, '0 0 0');
+				dl_setf(selectedlight, lf_flags, LF_W);
 				v = getviewpropv(15);
 				o = getviewpropv(11);
 				makevectors(v);
-				traceline(o, o + v_forward*8192, true, world);
+				traceline(o, o + v_forward*8192, TRUE, world);
 				dl_setv(selectedlight, lf_origin, trace_endpos + trace_plane_normal*4);
 				break;
 			}
@@ -225,7 +282,7 @@ float(float keyc, float unic) editor_lights_key =
 		v = getviewpropv(15);
 		o = getviewpropv(11);
 		makevectors(v);
-		traceline(o, o + v_forward*8192, true, world);
+		traceline(o, o + v_forward*8192, TRUE, world);
 		dl_setv(selectedlight, lf_origin, dl_getv(selectedlight, lf_origin) - trace_plane_normal);
 	}
 	else if (keyc == ']')
@@ -233,12 +290,12 @@ float(float keyc, float unic) editor_lights_key =
 		v = getviewpropv(15);
 		o = getviewpropv(11);
 		makevectors(v);
-		traceline(o, o + v_forward*8192, true, world);
+		traceline(o, o + v_forward*8192, TRUE, world);
 		dl_setv(selectedlight, lf_origin, dl_getv(selectedlight, lf_origin) + trace_plane_normal);
 	}
 	else if (keyc == 127)
 		dl_setf(selectedlight, lf_radius, 0);
 	else
-		return false;
-	return true;
+		return FALSE;
+	return TRUE;
 };
