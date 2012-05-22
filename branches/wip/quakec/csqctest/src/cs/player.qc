@@ -63,7 +63,7 @@ q1modellist_t q1models[GIB_MAX] =
 			{41,   9},		//axdeth1
 			{41,   9},		//axdeth1
 			{41,   9},		//axdeth1
-			{41,   9},		//axdeth1
+			{41,   9}		//axdeth1
 		}
 	},
 	{
@@ -82,7 +82,7 @@ q1modellist_t q1models[GIB_MAX] =
 			{61,   9},		//deathb1
 			{70,   15},	//deathc1
 			{85,   9},		//deathd1
-			{93,   9},		//deathe1
+			{93,   9}		//deathe1
 		}
 	},
 	{
@@ -102,13 +102,11 @@ q1modellist_t q1models[GIB_MAX] =
 			{18,   11},	//cdie1
 			{8,    10},	//die1(again)
 			{18,   11},	//cdie1(again)
-			{8,    10},	//die1(again2)
-
+			{8,    10}		//die1(again2)
 		}
-
 	},
 	{
-		"progs/zombie.mdl"
+		"progs/zombie.mdl",
 		/*strictly speaking, zombies do not have a death animation, as they only ever gib on death, but they do have a pain animation where they lie down.*/
 		{
 			{0,   15},		//stand1
@@ -127,7 +125,7 @@ q1modellist_t q1models[GIB_MAX] =
 			{162,  11},	//paine1-paine11(again)
 			{162,  11},	//paine1-paine11(again)
 			{162,  11},	//paine1-paine11(again)
-			{162,  11},	//paine1-paine11(again)
+			{162,  11} 	//paine1-paine11(again)
 		}
 	},
 	{
@@ -845,6 +843,7 @@ float(float isnew) RefreshPlayerSSQCLess =
 		break;
 	}
 	RefreshPlayer(isnew);
+	return TRUE;
 };
 
 //this is sent after the server has run our movement command.

@@ -180,8 +180,6 @@ void(entity ent, float endframe) Pred_RunMovement =
 	tmp = input_angles;
 	if (getinputstate(endframe))
 	{
-		if (!plussteer)
-			input_angles = toonangles;
 		PM_Run(ent);
 	}
 	input_angles = tmp;
