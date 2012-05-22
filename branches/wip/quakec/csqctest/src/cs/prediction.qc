@@ -52,7 +52,7 @@ void(vector newteleorg, vector newtelevel, vector newteleang) Pred_Predict_Telep
 	if (teleframe == clientcommandframe-1)
 	{
 		//update the client's view angles
-		setviewprop(33, newteleang);
+		setproperty(33, newteleang);
 		view_angles = newteleang;
 	}
 	other.origin = newteleorg;
@@ -121,6 +121,7 @@ nonstatic void(entity ent) Pred_PlayerUpdated =
 
 void(entity ent, float endframe) Pred_RunMovement =
 {
+	vector tmp;
 	if (servercommandframe >= player_sequence+63)
 	{
 		//we're meant to be updating the player faster than this
@@ -133,11 +134,10 @@ void(entity ent, float endframe) Pred_RunMovement =
 		return;
 	}
 
-#ifdef WORKINDP
-	//DP handily corrupts this for us, so waste some more cpu cycles to compensate
-	if (isdp)
-		Pred_ResetPlayerPrediction();
-#endif
+	//always reset.
+	//the pmoveframe==clientcommandframe is constantly updated as movements come in before its time to send the message, so we need to at least reset back to that frame.
+	//FIXME: resetting right from the start probably isn't required if we didn't receive a new frame.
+	Pred_ResetPlayerPrediction(ent);
 
 	if (getstatf(STAT_HEALTH) <= 0)
 	{
@@ -166,13 +166,25 @@ void(entity ent, float endframe) Pred_RunMovement =
 		{
 			break;
 		}
+#ifdef OWNPLAYERPHYSICS
+		PM_Run(ent);
+#else
 		runstandardplayerphysics(ent);
-
+#endif
 		pmoveframe++;
 	}
 
-	//add in anything that was applied after (for low packet rate protocols)
-	input_angles = view_angles;
+	if (endframe != clientcommandframe)
+		return;
+
+	tmp = input_angles;
+	if (getinputstate(endframe))
+	{
+		if (!plussteer)
+			input_angles = toonangles;
+		PM_Run(ent);
+	}
+	input_angles = tmp;
 };
 
 nonstatic void(entity ent) Pred_UpdateLocalMovement =
@@ -213,11 +225,16 @@ nonstatic void(entity ent) Pred_UpdateLocalMovement =
 		if (pmove_steptime - time > 0)
 			vieworg_z += (pmove_steptime - time)*STEPTIME * pmove_step;
 
-	if (chasecam)
-	{
-		view_angles_y += CVARF(cg_thirdPersonAngle);
 
-		makevectors(view_angles);
+	viewang = view_angles;
+	self.angles = viewang;
+	self.angles_x = viewang * -0.333;
+
+	if (chasecam == 1)
+	{
+		viewang_y += CVARF(cg_thirdPersonAngle);
+
+		makevectors(viewang);
 		traceline(self.origin, vieworg - v_forward * CVARF(cg_thirdPersonRange)+v_up*CVARF(cg_thirdPersonHeight), TRUE, self);
 		vieworg = trace_endpos + v_forward*8;
 	}

@@ -2,6 +2,7 @@ float chasecam;	//chasecam active
 entity player_local;	//handle to the local player entity
 float isdp;	//if we're running under DP
 string levelname;
+string string_null;
 
 //q3playerm
 .entity headent;
@@ -22,7 +23,7 @@ string levelname;
 .string oldskin;
 
 //the genders you can have.
-//we're generous with three.
+//we're generous with three, though there's at least 15 different legal genders...
 enum {
 	GENDER_NEUTER,
 	GENDER_MALE,
@@ -46,6 +47,7 @@ enum {
 .float gibbable;
 
 //q3playerm
+#ifdef MD3PMODELS
 float(string newmodelskin) Anim_SetModel;
 void() Anim_Draw;
 void() Anim_UnsetModel;
@@ -55,11 +57,13 @@ float() Anim_GetGender;
 float(string skinname) Anim_GetHeadModelIndex;
 float(string skinname) Anim_GetHeadSkinNumber;
 vector(string skinname) Anim_GetHeadOffset;
+#endif
 
 //prediction
 void(entity ent) Pred_PlayerUpdated;
 void(entity ent) Pred_UpdateLocalMovement;
 vector vieworg;
+vector viewang;
 
 //menu
 void(void(float, float, float, float) fnc) Menu_Activate;
@@ -80,5 +84,18 @@ DEFCVAR_FLOAT(cg_thirdPersonRange, 96)
 DEFCVAR_FLOAT(cg_thirdPersonHeight, 24)
 DEFCVAR_FLOAT(cg_noselfsounds, 0)
 DEFCVAR_FLOAT(cg_noselfjumpsound, 0)
+DEFCVAR_FLOAT(cg_swapbuttons, 0)
+DEFCVAR_FLOAT(cg_showlastprint, 0)
 DEFCVAR_FLOAT(v_viewheight, 0)
 DEFCVAR_STRING(cg_forceskin, "")
+
+#define RSES_NOLERP 1	
+//only really for use on predicted player entities
+#define RSES_AUTOROTATE 0
+#define RSES_NOROTATE 2
+#define RSES_AUTOTRAILS 0
+#define RSES_NOTRAILS 4
+#define RSES_AUTOLIGHTS 0
+#define RSES_NOLIGHTS 8
+
+#define FILE_READ 0

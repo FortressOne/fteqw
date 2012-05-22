@@ -9,8 +9,6 @@ void (vector org, entity death_owner) spawn_tdeath;
 
 float	modelindex_eyes, modelindex_player;
 
-void() DefaultPlayerPhysics;
-
 .float usingcsqc;
 
 /*
@@ -472,7 +470,7 @@ entity() SelectSpawnPoint =
 	return spot;
 };
 
-float(entity to) SendPlayer =
+float(entity to, float sendflags) SendPlayer =
 {
 	float ef;
 	float f;
@@ -494,18 +492,31 @@ float(entity to) SendPlayer =
 	if (self.movetype != MOVETYPE_WALK)
 		ef |= 16;	//tells the csqc to stop trying to predict (I can't be bothered to send the real movetype)
 
-
 	WriteByte(MSG_ENTITY, CLASS_PLAYER);
-	WriteByte(MSG_ENTITY, self.frame);	//for clientside animation selection, in a way compatable with not having csqc.
-	WriteByte(MSG_ENTITY, self.angles_x*(256/360));
-	WriteByte(MSG_ENTITY, self.angles_y*(256/360));
-	WriteCoord(MSG_ENTITY, self.origin_x);
-	WriteCoord(MSG_ENTITY, self.origin_y);
-	WriteCoord(MSG_ENTITY, self.origin_z);
-	WriteShort(MSG_ENTITY, self.velocity_x);
-	WriteShort(MSG_ENTITY, self.velocity_y);
-	WriteShort(MSG_ENTITY, self.velocity_z);
-	WriteByte(MSG_ENTITY, ef);
+	WriteByte(MSG_ENTITY, sendflags);
+	if (sendflags & SF_INITIAL)
+		WriteByte(MSG_ENTITY, self.modelclass);
+	if (sendflags & SF_ACTION)
+		WriteByte(MSG_ENTITY, self.action);
+	if (sendflags & SF_ANGLES)
+	{
+		WriteByte(MSG_ENTITY, self.angles_x*(256/360));
+		WriteByte(MSG_ENTITY, self.angles_y*(256/360));
+	}
+	if (sendflags & SF_ORIGIN)
+	{
+		WriteCoord(MSG_ENTITY, self.origin_x);
+		WriteCoord(MSG_ENTITY, self.origin_y);
+		WriteCoord(MSG_ENTITY, self.origin_z);
+	}
+	if (sendflags & SF_VELOCITY)
+	{
+		WriteShort(MSG_ENTITY, self.velocity_x);
+		WriteShort(MSG_ENTITY, self.velocity_y);
+		WriteShort(MSG_ENTITY, self.velocity_z);
+	}
+	if (sendflags & SF_FLAGS)
+		WriteByte(MSG_ENTITY, ef);
 	return TRUE;
 };
 
@@ -543,11 +554,8 @@ void() PutClientInServer =
 	self.effects = 0;
 	self.invincible_time = 0;
 
-	if (serverusingcsqc)
-	{
-		self.SendEntity = SendPlayer;
-		self.SendFlags = FULLSEND;
-	}
+	self.SendEntity = SendPlayer;
+	self.SendFlags = FULLSEND;
 
 	DecodeLevelParms ();
 	
@@ -586,7 +594,7 @@ void() PutClientInServer =
 		spawn_tfog (self.origin + v_forward*20);
 	}
 
-	spawn_tdeath (self.origin, self);
+//	spawn_tdeath (self.origin, self);
 };
 
 
@@ -775,7 +783,6 @@ void() PlayerDeathThink =
 
 void() PlayerJump =
 {
-
 	if (self.flags & FL_WATERJUMP)
 		return;
 	
@@ -804,6 +811,7 @@ void() PlayerJump =
 		return;
 	}
 
+#ifndef OWNPLAYERPHYSICS
 	if (!(self.flags & FL_ONGROUND))
 		return;
 
@@ -819,7 +827,10 @@ void() PlayerJump =
 	sound (self, CHAN_BODY, "player/plyrjmp8.wav", 1, ATTN_NORM);
 
 //pmove code predicts this
-//	self.velocity_z = self.velocity_z + 270;
+#ifdef NETQUAKE
+	self.velocity_z = self.velocity_z + 270;
+#endif
+#endif
 };
 
 
@@ -863,7 +874,7 @@ void() WaterMove =
 	if (!self.waterlevel)
 	{
 		if (self.flags & FL_INWATER)
-		{	
+		{
 			// play leave water sound
 			sound (self, CHAN_BODY, "misc/outwater.wav", 1, ATTN_NORM);
 			self.flags = self.flags - FL_INWATER;
@@ -935,7 +946,11 @@ void() CheckWaterJump =
 			self.flags = self.flags | FL_WATERJUMP;
 			self.velocity_z = 225;
 			self.flags = self.flags - (self.flags & FL_JUMPRELEASED);
+#ifdef OWNPLAYERPHYSICS
+			self.teleport_time = 2;	// qw-style
+#else
 			self.teleport_time = time + 2;	// safety net
+#endif
 			return;
 		}
 	}
@@ -956,17 +971,13 @@ void() PlayerPreThink =
 		IntermissionThink ();	// otherwise a button could be missed between
 		return;					// the think tics
 	}
-
 	if (self.view_ofs == '0 0 0')
 		return;		// intermission or finale
-
 	self.SendFlags = FULLSEND;
 
 	makevectors (self.v_angle);		// is this still used
-
 	CheckRules ();
 	WaterMove ();
-
 	if (self.waterlevel == 2)
 		CheckWaterJump ();
 
@@ -978,7 +989,6 @@ void() PlayerPreThink =
 	
 	if (self.deadflag == DEAD_DYING)
 		return;	// dying, so do nothing
-
 	if (self.button2)
 	{
 		PlayerJump ();
@@ -1549,14 +1559,13 @@ void(entity targ, entity attacker) ClientObituary =
 	}
 };
 
-void() DefaultPlayerPhysics = #347;
 void() SV_RunClientCommand =
 {
 	//should match the one used by csqc.
 #ifdef OWNPLAYERPHYSICS
-	PMove(self);
+	PM_Run(self);
 #else
-	DefaultPlayerPhysics(self);
+	runstandardplayerphysics(self);
 #endif
 };
 

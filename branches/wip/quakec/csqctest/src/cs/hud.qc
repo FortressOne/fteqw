@@ -134,23 +134,23 @@ string(float f, float chars, string lead) FormatFloat
 void(vector pos) Hud_CoopScores_SBar =
 {
 	string s;
-	float secs;
-	float mins;
+	float nsecs;
+	float nmins;
 	//When you press tab in single player/coop, you get some replacement info over the sbar
 	vector sbar = screensize_y * ' 0 1 0' - '0 24 0';
 	drawpic(sbar, "scorebar", '320 24 0', '1 1 1', 0.333, 0);
 
 	s = strcat("Monsters:", FormatFloat(getstatf(STAT_KILLEDMONSTERS), 3, " "), "/", FormatFloat(getstatf(STAT_TOTALMONSTERS), 3, " "));
-	drawstring(sbar + '8 4', s, '8 8 0', 1, 0);
+	drawstring(sbar + '8 4', s, '8 8 0', '1 1 1', 1, 0);
 	s = strcat("Secrets :", FormatFloat(getstatf(STAT_FOUNDSECRETS), 3, " "), "/", FormatFloat(getstatf(STAT_TOTALSECRETS), 3, " "));
-	drawstring(sbar + '8 12', s, '8 8 0', 1, 0);
+	drawstring(sbar + '8 12', s, '8 8 0', '1 1 1', 1, 0);
 
-	mins = floor(time/60);
-	secs = floor(time - mins*60);
-	s = strcat("Time :", FormatFloat(mins, 3, " "), ":", FormatFloat(secs, 2, "0"));
-	drawstring(sbar + '184 4', s, '8 8 0', 1, 0);
+	nmins = floor(time/60);
+	nsecs = floor(time - nmins*60);
+	s = strcat("Time :", FormatFloat(nmins, 3, " "), ":", FormatFloat(nsecs, 2, "0"));
+	drawstring(sbar + '184 4', s, '8 8 0', '1 1 1', 1, 0);
 
-	drawstring(sbar + '232 12' - strlen(levelname)*'4 0', levelname, '8 8 0', 1, 0);
+	drawstring(sbar + '232 12' - strlen(levelname)*'4 0', levelname, '8 8 0', '1 1 1', 1, 0);
 };
 
 void Hud_DrawSBar(vector pos)
@@ -277,14 +277,14 @@ void Hud_Draw3dScene(vector topleft, vector sz)
 {
 	clearscene();
 
-	setviewprop(VF_DRAWWORLD, 0);
-	setviewprop(VF_DRAWENGINESBAR, 0);
-	setviewprop(VF_DRAWCROSSHAIR, 0);
-	setviewprop(VF_MIN, topleft);
-	setviewprop(VF_SIZE, sz);
-	setviewprop(VF_FOV, '30 30');
-	setviewprop(VF_ORIGIN, '0 0 0');
-	setviewprop(VF_ANGLES, '0 0 0');
+	setproperty(VF_DRAWWORLD, 0);
+	setproperty(VF_DRAWENGINESBAR, 0);
+	setproperty(VF_DRAWCROSSHAIR, 0);
+	setproperty(VF_MIN, topleft);
+	setproperty(VF_SIZE, sz);
+	setproperty(VF_FOV, '30 30');
+	setproperty(VF_ORIGIN, '0 0 0');
+	setproperty(VF_ANGLES, '0 0 0');
 
 	addentity(hud3ditem);
 	renderscene();
@@ -312,10 +312,11 @@ void Hud_DrawQ3Head(vector topleft, vector sz, string skinname, vector ang)
 
 	tokenize(skinname);
 	skinname = argv(0);
-
+#ifdef MD3PMODELS
 	headmodelindex = Anim_GetHeadModelIndex(skinname);
 	headskinnumber = Anim_GetHeadSkinNumber(skinname);
 	headoffset = Anim_GetHeadOffset(skinname);
+#endif
 
 	if (!headmodelindex)
 		return;	//eep.
@@ -353,10 +354,10 @@ void Hud_Q3(vector pos)
 nonstatic void Hud_Draw(float hudtype, float scoreboard, float width, float height)
 {
 	vector pos;
+
 	screensize_x = width;
 	screensize_y = height;
 	screensize_z = 0;
-
 	pos_x = (screensize_x-320)/2;
 	pos_y = screensize_y;
 
@@ -382,3 +383,4 @@ nonstatic void Hud_Draw(float hudtype, float scoreboard, float width, float heig
 		Hud_DrawIBar(pos - '0 48 0');
 	}
 };
+ 

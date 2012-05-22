@@ -5,6 +5,10 @@
 float show_scoreboard;
 string dbgstr;
 
+float mouse2;
+vector mouse;
+vector screensize;
+
 void()	CSQC_Shutdown = {};
 
 //check engine extensions, and give suitable warning
@@ -41,7 +45,11 @@ float() d = {return 7773;};
 
 void() checkcompilerversion =
 {
+//reject old/buggy qc compilers
 	local entity testent;
+	local float foo;
+
+	foo = 4;
 
 	testent = spawn();
 	testent.entnum = -5;
@@ -62,8 +70,15 @@ void() checkcompilerversion =
 		print("compiler failed on f2(0,f1(1))\n");
 	if (testfunc2(testfunc(5),testfunc(6)) != 11)
 		print("compiler failed on f2(f(),f())\n");
+	if (testarray[1] != 6)
+		print("compiler failed on a[1] --- ", ftos(testarray[1]), "\n");
 	if (testarray[0]+testarray[1] != 11)
 		print("compiler failed on a[0]+a[1]\n");
+
+	if (!foo)
+	{
+		print("compiler failed on !foo\n");
+	}
 };
 
 #ifdef FTEDEPENDANT
@@ -71,7 +86,7 @@ void() checkcompilerversion =
 #endif
 
 
-void(float isnew) RefreshPlayer;
+float(float isnew) RefreshPlayer;
 
 
 void(float isnew) RefreshOther =
@@ -192,7 +207,7 @@ float(string str) CSQC_ConsoleCommand =
 
 void(string msg, float type) CSQC_Parse_Print =
 {
-cprint(msg);
+	print(msg);
 
 	if (dbgstr)
 		strunzone(dbgstr);
@@ -241,7 +256,7 @@ void() drawloadingscreen =
 //	drawstring('0 0', "loading screen", '1 1', '1 1 1', 1);
 };
 
-void() CSQC_Init =
+void(float apiver, string enginename, float engineversion) CSQC_Init =
 {
 	checkengineversion();
 	checkcompilerversion();
@@ -254,11 +269,11 @@ void() CSQC_Init =
 	regcommands();
 
 #ifndef FTEDEPENDANT
-	if (checkextension("EXT_CSQC_1"))
+//	if (checkextension("EXT_CSQC_1"))
 #endif
 	{
 //		deltalisten("*", RefreshOther, 0);	//catch-all
-		deltalisten("progs/player.mdl", RefreshPlayer, RSES_NOLERP|RSES_NOROTATE);	//animate players/player-corpses
+		deltalisten("progs/player.mdl", RefreshPlayerSSQCLess, RSES_NOLERP|RSES_NOROTATE);	//animate players/player-corpses
 	}
 };
 
@@ -299,10 +314,26 @@ void(entity ent) CSQC_DrawViewModel =
 //a bit of fun
 void() CSQC_Input_Frame =
 {
-/*	if (input_buttons == 1)
-		input_buttons = 2;
-	else if (input_buttons == 2)
-		input_buttons = 1;*/
+	if (CVARF(cg_swapbuttons))
+	{
+		if (input_buttons == 1)
+			input_buttons = 2;
+		else if (input_buttons == 2)
+			input_buttons = 1;
+	}
+	if (chasecam == 2)
+	{
+		//rotate the angles into the right frame of reference.
+		local vector inv = input_movevalues;
+		makevectors(input_angles);
+		//rotate them into screenspace
+		input_movevalues_x = inv_x * v_forward_x - inv_y*v_right_x + inv_z*v_up_x;
+		input_movevalues_y = inv_x * v_forward_y - inv_y*v_right_y + inv_z*v_up_y;
+		input_movevalues_z = inv_x * v_forward_z - inv_y*v_right_z + inv_z*v_up_z;
+
+		if (mouse2)
+			input_movevalues_x += cvar("cl_forwardspeed");
+	}
 };
 
 void() CSQC_Delta_Remove =
@@ -319,7 +350,12 @@ void() CSQC_Delta_Remove =
 
 float (float event, float parama, float paramb) CSQC_InputEvent =
 {
-	if (event == 0)
+	if (event == 1)
+	{
+		if (parama == 513)
+			mouse2 = false;
+	}
+	else if (event == 0)
 	{
 		switch(CVARF(cg_editor))
 		{
@@ -332,61 +368,115 @@ float (float event, float parama, float paramb) CSQC_InputEvent =
 				return true;
 			break;
 		}
+
+		if (parama == 513)
+			mouse2 = true;
 	}
-	return Menu_InputEvent(event, parama, paramb);
+	if (Menu_InputEvent(event, parama, paramb))
+		return true;
+
+	if (chasecam == 2)
+	{
+		if (event == 2)
+		{
+			mouse_x += parama;
+			mouse_y += paramb;
+		}
+		else if (event == 3)
+		{
+			mouse_x = parama;
+			mouse_y = paramb;
+		}
+	}
+	return false;
 };
 
 void(float width, float height, float do2d) CSQC_UpdateView =
 {
 	float hudtype = CVARF(cg_hudtype);
 
+	if (screensize_x != width || screensize_y != height)
+	{
+		screensize_x = width;
+		screensize_y = height;
+		mouse = screensize * 0.5;
+	}
+	mouse_x = bound(0, mouse_x, screensize_x);
+	mouse_y = bound(0, mouse_y, screensize_y);
+
 	chasecam = CVARF(cg_thirdPerson);
-	if (getstatf(STAT_HEALTH) <= 0)
+	if (getstatf(STAT_HEALTH) <= 0 && !chasecam)
 		chasecam = 1;
+
+	float plcount = 1;
+	float pln;
 
 	clearscene();
 
-	setviewprop(VF_DRAWCROSSHAIR, 1);
+	setproperty(VF_DRAWCROSSHAIR, 1);
 
 	//force fullscreen views (ignore viewsize).
-	setviewprop(VF_MIN, '0 0 0');
-	setviewprop(VF_SIZE_X, width);
-	setviewprop(VF_SIZE_Y, height);
+	setproperty(VF_MIN_X, 0);
+	setproperty(VF_MIN_Y, pln * (height/plcount));
+	setproperty(VF_SIZE_X, width);
+	setproperty(VF_SIZE_Y, height/plcount);
 #if 0
-	setviewprop(VF_MIN_X, width/2);
-	setviewprop(VF_MIN_Y, height/2);
-	setviewprop(VF_SIZE_X, width/2);
-	setviewprop(VF_SIZE_Y, height/2);
+	setproperty(VF_MIN_X, width/2);
+	setproperty(VF_MIN_Y, height/2);
+	setproperty(VF_SIZE_X, width/2);
+	setproperty(VF_SIZE_Y, height/2);
 #endif
 
 	if (hudtype != 1)
 	{
-		setviewprop(VF_DRAWENGINESBAR, 0);
+		setproperty(VF_DRAWENGINESBAR, 0);
 	}
 	else
 	{
-		setviewprop(VF_DRAWENGINESBAR, 1);
+		setproperty(VF_DRAWENGINESBAR, 1);
 	}
 
 	addentities(MASK_NORMAL|MASK_ENGINE);
 
 	if (player_local)
 	{
-		setviewprop(VF_ORIGIN, vieworg);
-		setviewprop(VF_ANGLES, view_angles);
+		setproperty(VF_ORIGIN, vieworg);
+		setproperty(VF_ANGLES, viewang);
 
-		makevectors(view_angles);
+		makevectors(viewang);
 		SetListener(vieworg, v_forward, v_right, v_up);
 
-		if (!chasecam)
+		if (!chasecam && !intermission)
 		{
 			CSQC_DrawViewModel(viewentity);
 		}
 	}
-	else
+	else if (!intermission)
 	{
 		//engine didn't tell us about our player entity. that's not right...
 		addentities(MASK_ENGINEVIEWMODEL);
+	}
+
+	if (chasecam == 2)
+	{
+		float fov = cvar("fov") / 90;
+		//this is a separate extension
+		setproperty(200, FALSE);	//fte extension here
+		setproperty(VF_ANGLES, '90 0 0');
+		setproperty(VF_FOVX, width * fov);
+		setproperty(VF_FOVY, height * fov);
+
+		if (!isdemo())
+		{
+			setproperty(34, 0);	//dp extension, because I can.
+			setproperty(35, 270-vectoyaw(mouse - (screensize*0.5)));
+			setproperty(36, 0);
+		}
+
+		//and make sure audio doesn't rotate with the player too. that would be weird.
+		//you could write this more efficiently, but I'm writing clumsy code to make sure mixing is as expected.
+		makevectors('0 0 0');
+		SetListener(vieworg, v_forward, v_right, v_up);
 	}
 
 	switch(CVARF(cg_editor))
@@ -401,7 +491,6 @@ void(float width, float height, float do2d) CSQC_UpdateView =
 	}
 
 	renderscene();
-
 	if (do2d)
 	{
 		switch(CVARF(cg_editor))
@@ -416,16 +505,19 @@ void(float width, float height, float do2d) CSQC_UpdateView =
 		default:
 			if (hudtype)
 				Hud_Draw(hudtype, show_scoreboard, width, height);
+
+			if (chasecam == 2)
+				drawstring(mouse-'4 4', "+", '8 8 0', '1 1 1', 1);
 			break;
 		}
 
 		Menu_Think();
 	}
 
-	if (dbgstr)
+	if (dbgstr && CVARF(cg_showlastprint))
 	{
-//		drawrawstring('16 64 0', dbgstr, '16 16 16', '1 1 1', 0.5);
-//		drawstring('16 80 0', dbgstr, '16 16 16', 0.5);
+//		drawrawstring('16 64 0', dbgstr, '16 16 0', '1 1 1', 0.5);
+//		drawstring('16 80 0', dbgstr, '16 16 0', 0.5);
 	}
 };
 

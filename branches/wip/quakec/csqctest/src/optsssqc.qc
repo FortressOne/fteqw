@@ -1,1 +1,2 @@
 #define SSQC
+#define NETQUAKE

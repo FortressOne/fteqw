@@ -90,6 +90,8 @@ void() player_run;
 
 void()	player_stand1 =[	$axstnd1,	player_stand1	]
 {
+	self.action = ACT_IDLE;
+
 	self.weaponframe=0;
 	if (self.velocity_x || self.velocity_y)
 	{
@@ -115,6 +117,8 @@ void()	player_stand1 =[	$axstnd1,	player_stand1	]
 
 void()	player_run =[	$rockrun1,	player_run	]
 {
+	self.action = ACT_RUN;
+
 	self.weaponframe=0;
 	if (!self.velocity_x && !self.velocity_y)
 	{
@@ -139,7 +143,7 @@ void()	player_run =[	$rockrun1,	player_run	]
 };
 
 
-void()	player_shot1 =	[$shotatt1, player_shot2	] {self.weaponframe=1;
+void()	player_shot1 =	[$shotatt1, player_shot2	] {self.action = ACT_ATTACK4; self.weaponframe=1;
 self.effects = self.effects | EF_MUZZLEFLASH;};
 void()	player_shot2 =	[$shotatt2, player_shot3	] {self.weaponframe=2;};
 void()	player_shot3 =	[$shotatt3, player_shot4	] {self.weaponframe=3;};
@@ -147,22 +151,22 @@ void()	player_shot4 =	[$shotatt4, player_shot5	] {self.weaponframe=4;};
 void()	player_shot5 =	[$shotatt5, player_shot6	] {self.weaponframe=5;};
 void()	player_shot6 =	[$shotatt6, player_run	] {self.weaponframe=6;};
 
-void()	player_axe1 =	[$axatt1, player_axe2	] {self.weaponframe=1;};
+void()	player_axe1 =	[$axatt1, player_axe2	] {self.action = ACT_ATTACK1; self.weaponframe=1;};
 void()	player_axe2 =	[$axatt2, player_axe3	] {self.weaponframe=2;};
 void()	player_axe3 =	[$axatt3, player_axe4	] {self.weaponframe=3;W_FireAxe();};
 void()	player_axe4 =	[$axatt4, player_run	] {self.weaponframe=4;};
 
-void()	player_axeb1 =	[$axattb1, player_axeb2	] {self.weaponframe=5;};
+void()	player_axeb1 =	[$axattb1, player_axeb2	] {self.action = ACT_ATTACK2; self.weaponframe=5;};
 void()	player_axeb2 =	[$axattb2, player_axeb3	] {self.weaponframe=6;};
 void()	player_axeb3 =	[$axattb3, player_axeb4	] {self.weaponframe=7;W_FireAxe();};
 void()	player_axeb4 =	[$axattb4, player_run	] {self.weaponframe=8;};
 
-void()	player_axec1 =	[$axattc1, player_axec2	] {self.weaponframe=1;};
+void()	player_axec1 =	[$axattc1, player_axec2	] {self.action = ACT_ATTACK3; self.weaponframe=1;};
 void()	player_axec2 =	[$axattc2, player_axec3	] {self.weaponframe=2;};
 void()	player_axec3 =	[$axattc3, player_axec4	] {self.weaponframe=3;W_FireAxe();};
 void()	player_axec4 =	[$axattc4, player_run	] {self.weaponframe=4;};
 
-void()	player_axed1 =	[$axattd1, player_axed2	] {self.weaponframe=5;};
+void()	player_axed1 =	[$axattd1, player_axed2	] {self.action = ACT_ATTACK4; self.weaponframe=5;};
 void()	player_axed2 =	[$axattd2, player_axed3	] {self.weaponframe=6;};
 void()	player_axed3 =	[$axattd3, player_axed4	] {self.weaponframe=7;W_FireAxe();};
 void()	player_axed4 =	[$axattd4, player_run	] {self.weaponframe=8;};
@@ -172,6 +176,7 @@ void()	player_axed4 =	[$axattd4, player_run	] {self.weaponframe=8;};
 
 void() player_nail1   =[$nailatt1, player_nail2  ] 
 {
+	self.action = ACT_ATTACK1;
 	self.effects = self.effects | EF_MUZZLEFLASH;
 
 	if (!self.button0)
@@ -201,6 +206,7 @@ void() player_nail2   =[$nailatt2, player_nail1  ]
 
 void() player_light1   =[$light1, player_light2  ] 
 {
+	self.action = ACT_ATTACK3; 
 	self.effects = self.effects | EF_MUZZLEFLASH;
 
 	if (!self.button0)
@@ -229,7 +235,7 @@ void() player_light2   =[$light2, player_light1  ]
 //============================================================================
 
 
-void() player_rocket1   =[$rockatt1, player_rocket2  ] {self.weaponframe=1;
+void() player_rocket1   =[$rockatt1, player_rocket2  ] {self.action = ACT_ATTACK3; self.weaponframe=1;
 self.effects = self.effects | EF_MUZZLEFLASH;};
 void() player_rocket2   =[$rockatt2, player_rocket3  ] {self.weaponframe=2;};
 void() player_rocket3   =[$rockatt3, player_rocket4  ] {self.weaponframe=3;};
@@ -320,14 +326,14 @@ local float		rs;
 	return;
 };
 
-void()	player_pain1 =	[	$pain1,	player_pain2	] {PainSound();self.weaponframe=0;};
+void()	player_pain1 =	[	$pain1,	player_pain2	] {self.action = ACT_PAIN1; PainSound();self.weaponframe=0;};
 void()	player_pain2 =	[	$pain2,	player_pain3	] {};
 void()	player_pain3 =	[	$pain3,	player_pain4	] {};
 void()	player_pain4 =	[	$pain4,	player_pain5	] {};
 void()	player_pain5 =	[	$pain5,	player_pain6	] {};
 void()	player_pain6 =	[	$pain6,	player_run	] {};
 
-void()	player_axpain1 =	[	$axpain1,	player_axpain2	] {PainSound();self.weaponframe=0;};
+void()	player_axpain1 =	[	$axpain1,	player_axpain2	] {self.action = ACT_PAIN1; PainSound();self.weaponframe=0;};
 void()	player_axpain2 =	[	$axpain2,	player_axpain3	] {};
 void()	player_axpain3 =	[	$axpain3,	player_axpain4	] {};
 void()	player_axpain4 =	[	$axpain4,	player_axpain5	] {};
@@ -540,7 +546,7 @@ void(float type) ThrowCSQCGibs =
 
 void() GibPlayer =
 {
-	ThrowCSQCGibs(0);
+	ThrowCSQCGibs(GIB_PLAYER);
 
 	self.deadflag = DEAD_DEAD;
 
@@ -624,6 +630,7 @@ void() set_suicide_frame =
 	if (self.model != "progs/player.mdl")
 		return;	// already gibbed
 	self.frame = $deatha11;
+	self.action = ACT_DIE1; 
 	self.solid = SOLID_NOT;
 	self.movetype = MOVETYPE_TOSS;
 	self.deadflag = DEAD_DEAD;

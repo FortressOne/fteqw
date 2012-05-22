@@ -228,23 +228,23 @@ float(float keyc, float unic) editor_lights_key =
 		localcmd("noclip\n");
 	else if (keyc == 's')
 	{
-		v = getviewpropv(15);
-		o = getviewpropv(11);
+		v = getproperty(15);
+		o = getproperty(11);
 		makevectors(v);
 		selectbestlight(v_forward, o);
 	}
 	else if (keyc == 'm')
 	{
-		v = getviewpropv(15);
-		o = getviewpropv(11);
+		v = getproperty(15);
+		o = getproperty(11);
 		makevectors(v);
 		traceline(o, o + v_forward*8192, TRUE, world);
 		dl_setv(selectedlight, lf_origin, trace_endpos + trace_plane_normal*4);
 	}
 	else if (keyc == 'p')
 	{
-		v = getviewpropv(15);
-		o = getviewpropv(11);
+		v = getproperty(15);
+		o = getproperty(11);
 		makevectors(v);
 		traceline(o, o + v_forward*8192, TRUE, world);
 		vector ang = vectoangles((trace_endpos + trace_plane_normal*4) - dl_getv(selectedlight, lf_origin));
@@ -268,8 +268,8 @@ float(float keyc, float unic) editor_lights_key =
 				dl_setf(selectedlight, lf_style, 0);
 				dl_setv(selectedlight, lf_angles, '0 0 0');
 				dl_setf(selectedlight, lf_flags, LF_W);
-				v = getviewpropv(15);
-				o = getviewpropv(11);
+				v = getproperty(15);
+				o = getproperty(11);
 				makevectors(v);
 				traceline(o, o + v_forward*8192, TRUE, world);
 				dl_setv(selectedlight, lf_origin, trace_endpos + trace_plane_normal*4);
@@ -279,16 +279,16 @@ float(float keyc, float unic) editor_lights_key =
 	}
 	else if (keyc == '[')
 	{
-		v = getviewpropv(15);
-		o = getviewpropv(11);
+		v = getproperty(15);
+		o = getproperty(11);
 		makevectors(v);
 		traceline(o, o + v_forward*8192, TRUE, world);
 		dl_setv(selectedlight, lf_origin, dl_getv(selectedlight, lf_origin) - trace_plane_normal);
 	}
 	else if (keyc == ']')
 	{
-		v = getviewpropv(15);
-		o = getviewpropv(11);
+		v = getproperty(15);
+		o = getproperty(11);
 		makevectors(v);
 		traceline(o, o + v_forward*8192, TRUE, world);
 		dl_setv(selectedlight, lf_origin, dl_getv(selectedlight, lf_origin) + trace_plane_normal);

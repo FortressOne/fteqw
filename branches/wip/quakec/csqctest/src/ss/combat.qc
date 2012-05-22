@@ -63,6 +63,9 @@ void(entity targ, entity attacker) Killed =
 	if (self.health < -99)
 		self.health = -99;		// don't let sbar look bad if a player
 
+	self.SendFlags = FULLSEND;
+	self.action = ACT_DIE1 + floor(random()*4.999);
+
 	if (self.movetype == MOVETYPE_PUSH || self.movetype == MOVETYPE_NONE)
 	{	// doors, triggers, etc
 		self.th_die ();

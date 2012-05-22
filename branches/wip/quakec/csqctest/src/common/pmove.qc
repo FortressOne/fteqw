@@ -1,78 +1,366 @@
 /*
-
-WARNING: This entire file is pretty much GPLed.
-If you want to release your csqc mod free from the GPL, do not define OWNPLAYERPHYSICS, and remove this file from your progs.src
-
+  These globals are typically a restating of the obvious. These are the per-frame values valid for the current input frame which is being run. Any persistant state is stored in ent fields
 */
-
-#ifdef OWNPLAYERPHYSICS
-
+float input_timelength;
+vector input_angles;
+vector input_movevalues;
+float input_buttons;
 /*
-be very careful about the fields/globals that are read/written in this code.
-Using any that are changed elsewhere can and will result in prediction errors.
-Any fields that are expected to persist need to be added to csqc code to revert them.
-Any fields that are read need to be the same between csqc and ssqc code somehow. Changing such fields will result in brief errors.
+  Fields modified:
+  .float pmove_flags; (FL_ONGROUND)
+  .vector velocity;
+  .vector origin;
+  .float teleport_time;
+  Fields written:
+  .float waterlevel;
+  .float watertype;
+  .float flags; (FL_ONGROUND duped)
+
+  Any 'progressive' field needs to be handled in cs_pred.qc and sent from the server to the client.
+  Fields which are not handled like that will result in miss-prediction.
+
+  Note that touch functions will trigger in the middle of this code, including teleporters and such.
+
+  This code _must not_ use the 'time' global.
+  'time' is the server time. The client cannot reliably know what the time will be when its packet arrives at the server, and thus it is not predictable. Any use of 'time' can result in errors.
+  Any such uses should use a timer of some kind based around input_timelength.
 */
 
+/*FIXME: these should be tied to cvars instead, but replicated somehow for csqc (assigned to by other parts of code)*/
+var float movevars_stepheight = 18;
+var float movevars_airstepheight = 18;
+var float movevars_friction = 4;
+var float movevars_edgefriction = 2;
+var float movevars_gravity = 800;
+var float movevars_accelerate = 10;
+var float movevars_stopspeed = 100;
+var float movevars_maxspeed = 320;
+var float movevars_jumpheight = 270;
 
-#define movevars_stepheight 22
-#define movevars_friction 4
-#define movevars_gravity 800
-#define movevars_accelerate 10
-#define movevars_stopspeed 100
-#define movevars_maxspeed 320
-#define movevars_jumpheight 270
+.float waterlevel;
+.float watertype;
+.float teleport_time;
 
-.float pmove_flags;
+#define MOVETYPE_PRED_WALK MOVETYPE_WALK
+#define MOVETYPE_PRED_NOCLIP MOVETYPE_NOCLIP
+#define MOVETYPE_PRED_FLY MOVETYPE_FLY
+#define MOVETYPE_PRED_TOSS MOVETYPE_TOSS
 
-#ifdef HAVE_DOTGRAVITY
-.float gravity;
-#endif
+#define time you_may_not_use_time_within_pmove
 
-enumflags
+/*Figures out where the player is in the world. Whether they're in water, etc*/
+void() PM_Categorize =
 {
-	PMF_JUMP_HELD,
-	PMF_RESERVED,
-	PMF_ONGROUND
+	vector p;
+	float pc;
+	/*noclip is never onground*/
+	if (self.movetype == MOVETYPE_PRED_NOCLIP)
+		self.pmove_flags = self.pmove_flags - (self.pmove_flags & FL_ONGROUND);
+	else
+	/*if we're moving upwards, we can't be on ground*/
+	if (self.velocity_z > 180)
+		self.pmove_flags = self.pmove_flags - (self.pmove_flags & FL_ONGROUND);
+	else
+	{
+		tracebox(self.origin, self.mins, self.maxs, self.origin - '0 0 1', FALSE, self);
+		if (trace_fraction < 1 && trace_plane_normal_z > 0.7)
+			self.pmove_flags |= FL_ONGROUND;
+		else
+			self.pmove_flags = self.pmove_flags - (self.pmove_flags & FL_ONGROUND);
+	}
+
+	/*check water levels*/
+	p = self.origin;
+	p_z = self.origin_z + self.mins_z + 1;
+	pc = pointcontents(p);
+	if (pc < CONTENT_SOLID)
+	{
+		self.watertype = pc;
+		p_z = self.origin_z + (self.mins_z + self.maxs_z) * 0.5;
+		if (pointcontents(p) < CONTENT_SOLID)
+		{
+			p_z = self.origin_z + self.maxs_z;
+			if (pointcontents(p) < CONTENT_SOLID)
+				self.waterlevel = 3;
+			else
+				self.waterlevel = 2;
+		}
+		else
+			self.waterlevel = 1;
+	}
+	else
+	{
+		self.watertype = CONTENT_EMPTY;
+		self.waterlevel = 0;
+	}
+
+	self.flags &~= FL_ONGROUND | FL_JUMPRELEASED;
+	self.flags |= self.pmove_flags;
 };
 
-static void(entity tother) dotouch =
+/*This function applies the velocity changes the player wishes to apply*/
+void(float movetime, float before) PM_Run_Acceleration =
 {
-	entity oself;
-	//if (tother.touch == __NULL__)
+	local vector wishvel, wishdir, v;
+	local float wishspeed, f;
+
+	makevectors(input_angles);
+
+	PM_Categorize();
+
+	/*keep timers ticking*/
+	self.teleport_time -= movetime;
+
+	/*corpses can't move!*/
+	if (self.movetype == MOVETYPE_PRED_TOSS)
+	{
+		self.velocity_z = self.velocity_z - movevars_gravity * movetime;
 		return;
+	}
 
-	oself = self;
-	
-	other = self;
-	self = tother;
+	// swim
+	if (self.waterlevel >= 2)
+	if (self.movetype != MOVETYPE_PRED_NOCLIP)
+	{
+		self.pmove_flags = self.pmove_flags - (self.pmove_flags & FL_ONGROUND);
 
-	self.touch();
+		if (input_movevalues == '0 0 0')
+			wishvel = '0 0 -60'; // drift towards bottom
+		else
+			wishvel = v_forward * input_movevalues_x + v_right * input_movevalues_y + '0 0 1' * input_movevalues_z;
+
+		wishspeed = vlen (wishvel);
+		if (wishspeed > movevars_maxspeed)
+			wishspeed = movevars_maxspeed;
+
+		wishspeed = wishspeed * 0.7;
+
+		// water friction
+		if (self.velocity != '0 0 0')
+		{
+			f = vlen(self.velocity) * (1 - movetime * movevars_friction);
+			if (f > 0)
+				self.velocity = normalize(self.velocity) * f;
+			else
+				self.velocity = '0 0 0';
+		}
+		else
+			f = 0;
+
+		// water acceleration
+		if (wishspeed <= f)
+			return;
+
+		f = min(wishspeed - f, movevars_accelerate * wishspeed * movetime);
+		self.velocity = self.velocity + normalize(wishvel) * f;
+		return;
+	}
+
+	// hack to not let you back into teleporter
+	if (self.teleport_time > 0 && input_movevalues_x < 0)
+		wishvel = v_right * input_movevalues_y;
+	else
+	{
+		if (self.pmove_flags & FL_ONGROUND)
+			makevectors (input_angles_y * '0 1 0');
+
+		wishvel = v_forward * input_movevalues_x + v_right * input_movevalues_y;
+	}
+
+	if (self.movetype != MOVETYPE_PRED_FLY && self.movetype != MOVETYPE_PRED_NOCLIP)
+		wishvel_z = 0;
+	if (self.movetype != MOVETYPE_PRED_WALK)
+		wishvel_z += input_movevalues_z;
+
+	wishdir = normalize(wishvel);
+	wishspeed = vlen(wishvel);
+	if (wishspeed > movevars_maxspeed)
+		wishspeed = movevars_maxspeed;
+
+	if (self.movetype == MOVETYPE_PRED_FLY || self.movetype == MOVETYPE_PRED_NOCLIP) // noclip
+	{
+		self.pmove_flags = self.pmove_flags - (self.pmove_flags & FL_ONGROUND);
+
+		//friction
+		f = vlen(self.velocity);
+		if (f < movevars_stopspeed)
+			f = 1 - movetime * (movevars_stopspeed / f) * movevars_friction;
+		else
+			f = 1 - movetime * movevars_friction;
+		if (f < 0)
+			self.velocity = '0 0 0';
+		else
+			self.velocity = self.velocity * f;
+
+		//acceleration
+		f = wishspeed - (self.velocity * wishdir);
+		if (f > 0)
+			self.velocity = self.velocity + wishdir * min(f, movevars_accelerate * movetime * wishspeed);
+	}
+	else
+	{
+		/*FIXME: pogostick*/
+		if (self.pmove_flags & FL_ONGROUND)
+		if (self.pmove_flags & FL_JUMPRELEASED)
+		if (input_buttons & 2 && before)
+		{
+			if (self.velocity_z < 0)
+				self.velocity_z = 0;
+
+			self.velocity_z += movevars_jumpheight;
+
+#ifdef SSQC
+			sound (self, CHAN_BODY, "player/plyrjmp8.wav", 1, ATTN_NORM);
+#endif
+
+			self.pmove_flags &~= FL_ONGROUND;
+			
+			self.pmove_flags &~= FL_JUMPRELEASED;
+		}
+		// not pressing jump, set released flag
+		if (!(input_buttons & 2))
+			self.pmove_flags |= FL_JUMPRELEASED;
+		
+		if (self.pmove_flags & FL_ONGROUND) // walking
+		{
+			// friction
+			if (self.velocity_x || self.velocity_y)
+			{
+				v = self.velocity;
+				v_z = 0;
+				f = vlen(v);
+
+				// if the leading edge is over a dropoff, increase friction
+				v = self.origin + normalize(v) * 16 + '0 0 1' * self.mins_z;
+
+				traceline(v, v + '0 0 -34', TRUE, self);
+
+				// apply friction
+				if (trace_fraction == 1.0)
+				{
+					if (f < movevars_stopspeed)
+						f = 1 - movetime * (movevars_stopspeed / f) * movevars_friction * movevars_edgefriction;
+					else
+						f = 1 - movetime * movevars_friction * movevars_edgefriction;
+				}
+				else
+				{
+					if (f < movevars_stopspeed)
+						f = 1 - movetime * (movevars_stopspeed / f) * movevars_friction;
+					else
+						f = 1 - movetime * movevars_friction;
+				}
+
+				if (f < 0)
+					self.velocity = '0 0 0';
+				else
+					self.velocity = self.velocity * f;
+			}
+
+			// acceleration
+			f = wishspeed - (self.velocity * wishdir);
+			if (f > 0)
+				self.velocity = self.velocity + wishdir * min(f, movevars_accelerate * movetime * wishspeed);
+		}
+		else // airborn
+		{
+			/*apply gravity*/
+			self.velocity_z = self.velocity_z - movevars_gravity * movetime;
+
+			if (wishspeed < 30)
+				f = wishspeed - (self.velocity * wishdir);
+			else
+				f = 30 - (self.velocity * wishdir);
+			if (f > 0)
+				self.velocity = self.velocity + wishdir * (min(f, movevars_accelerate) * wishspeed * movetime);
+		}
+	}
+};
+
+/*This function just calls the other's touch function with the right context*/
+static void(entity tother) PM_DoTouch =
+{
+	entity oself = self;
+
+	if (tother.touch)
+	{
+		other = self;
+		self = tother;
+
+		self.touch();
+	}
 
 	self = oself;
 };
 
-//this function 'bounces' off any surfaces that were hit
-void(vector surfnorm) PMove_Rebound =
+/*this function 'bounces' off any surfaces that were hit*/
+static void(vector surfnorm) PM_Rebound =
 {
 	float v;
 	v = self.velocity*surfnorm;
 	self.velocity = self.velocity - surfnorm*(v);
 };
 
-void(void) PMove_Move =	//move forwards (preferably on the level) (does step ups)
+/*if BSP precision messes up, this function will attempt to correct the origin to stop it from being invalid*/
+float() PM_Fix_Origin =
 {
-	vector dest;
+	float x, y, z;
+	vector norg, oorg = self.origin;
+
+	oorg_x = floor(oorg_x*8)*0.125;
+	oorg_y = floor(oorg_y*8)*0.125;
+	oorg_z = floor(oorg_z*8)*0.125;
+
+	for (z = 0; z < 3; z++)
+	{
+		norg_z = oorg_z + ((z==2)?-1:z)*0.0125;
+		for (x = 0; x < 3; x++)
+		{
+			norg_x = oorg_x + ((x==2)?-1:x)*0.0125;
+			for (y = 0; y < 3; y++)
+			{
+				norg_y = oorg_y + ((y==2)?-1:y)*0.0125;
+
+				tracebox(norg, self.mins, self.maxs, norg, FALSE, self);
+				if (!trace_startsolid)
+				{
+					//dprint("unstuck\n");
+					self.origin = norg;
+					return TRUE;
+				}
+			}
+		}
+	}
+	//dprint("stuck\n");
+	return FALSE;
+};
+
+/*This function is responsible for moving the entity forwards according to the various inputs/state*/
+void() PM_Run_Move =
+{
+	vector destp;
 	vector saved_plane_normal;
 	float stepped;
 	float movetime;
 	float attempts;
 
+	if (self.movetype == MOVETYPE_PRED_NOCLIP)
+	{
+		self.origin = self.origin + self.velocity * input_timelength;
+		return;
+	}
+
 	//we need to bounce off surfaces (in order to slide along them), so we need at 2 attempts
 	for (attempts = 3, movetime = input_timelength; movetime>0 && attempts; attempts--)
 	{
-		dest = self.origin + self.velocity*movetime;
-		tracebox(self.origin, self.mins, self.maxs, dest, false, self);	//try going straight there
+		destp = self.origin + self.velocity*movetime;
+		tracebox(self.origin, self.mins, self.maxs, destp, FALSE, self);	//try going straight there
+		if (trace_startsolid)
+		{
+			if (!PM_Fix_Origin())
+				return;
+			continue;
+		}
 		self.origin = trace_endpos;
 
 		if (trace_fraction < 1)
@@ -85,214 +373,94 @@ void(void) PMove_Move =	//move forwards (preferably on the level) (does step ups
 			{
 				//step up if we can
 				trace_endpos = self.origin;
-				trace_endpos_z += movevars_stepheight;
-				tracebox(self.origin, self.mins, self.maxs, trace_endpos, false, self);
+				if (self.pmove_flags & FL_ONGROUND)
+					trace_endpos_z += movevars_stepheight;
+				else
+					trace_endpos_z += movevars_airstepheight;
+				tracebox(self.origin, self.mins, self.maxs, trace_endpos, FALSE, self);
 				stepped = trace_endpos_z - self.origin_z;
 
-				dest = trace_endpos + self.velocity*movetime;
-				dest_z = trace_endpos_z;
+				float roof_fraction = trace_fraction;
+				vector roof_plane_normal = trace_plane_normal;
+
+				destp = trace_endpos + self.velocity*movetime;
+				destp_z = trace_endpos_z; /*only horizontally*/
 				//move forwards
-				tracebox(trace_endpos, self.mins, self.maxs, dest, false, self);
+				tracebox(trace_endpos, self.mins, self.maxs, destp, FALSE, self);
 
 				//if we got anywhere, make this raised-step move count
 				if (trace_fraction != 0)
 				{
-					if (trace_fraction < 1)
-						PMove_Rebound(trace_plane_normal);
+					float fwfrac = trace_fraction;
+					vector fwplane = trace_plane_normal;
+
+					movetime -= movetime * trace_fraction;
 
 					//move down
-					dest = trace_endpos;
-					dest_z -= stepped+1;
-					tracebox(trace_endpos, self.mins, self.maxs, dest, false, self);
-					if (trace_fraction < 1)
-						PMove_Rebound(trace_plane_normal);
-
+					destp = trace_endpos;
+					destp_z -= stepped+1;
+					tracebox(trace_endpos, self.mins, self.maxs, destp, FALSE, self);
+					/*bounce off the ceiling if we hit it while airstepping*/
+					if (roof_fraction < 1)
+						PM_Rebound(roof_plane_normal);
+					if (trace_fraction < 1 /*FIXME: you probably want this: && self.velocity_z < 0*/)
+						PM_Rebound(trace_plane_normal);
+					else if (fwfrac < 1)
+						PM_Rebound(fwplane);
 					self.origin = trace_endpos;
-
-					movetime -= movetime * input_timelength;
 
 					continue;
 				}
 			}
 			
 			//stepping failed, just bounce off
-			PMove_Rebound(saved_plane_normal);
+			PM_Rebound(saved_plane_normal);
 
-			dotouch(trace_ent);
+			PM_DoTouch(trace_ent);
 		}
 		else
 			break;
 	}
 };
-/*
-void(vector dest) PMove_StepMove =
+
+
+/*Runs all physics for an input frame*/
+void(entity pent) PM_Run =
 {
-	//we hit something...
-
-	//step up
-	src = trace_endpos;
-	trace_endpos_z += movevars_stepheight;
-	tracebox(src, self.mins, self.maxs, dest, false, self);
-	stepped = trace_endpos_z - src_z;
-	dest_z += stepped;
-
-	//move forwards
-	tracebox(trace_endpos, self.mins, self.maxs, dest, false, self);
-
-	//move down
-	dest_z -= stepped;
-	tracebox(trace_endpos, self.mins, self.maxs, dest, false, self);
-}
-*/
-void() PMove_ApplyFriction =
-{
-	float newspeed, oldspeed;
-	oldspeed = vlen(self.velocity);
-	if (oldspeed < 1)
+	local entity oself = self;
+/*	if (pent.movetype < MOVETYPE_PRED_FIRST)
 	{
-		self.velocity = '0 0 0';
+		runstandardplayerphysics(pent);
 		return;
 	}
-	
-	//calculate what their new speed should be
-	newspeed = oldspeed - oldspeed*movevars_friction*input_timelength;
+*/	self = pent;
 
-	//and slow them
-	if (newspeed < 0)
-		newspeed = 0;
-	self.velocity = self.velocity * (newspeed/oldspeed);
-};
+	self.mins = VEC_HULL_MIN;
+	self.maxs = VEC_HULL_MAX;
+	PM_Fix_Origin();
 
-void(vector wishdir, float wishspeed, float accel) PMove_Accelerate =
-{
-	float addspeed, accelspeed;
-	float d;
-	d = self.velocity*wishdir;
-	addspeed = wishspeed - (d);
-	if (addspeed <= 0)
-		return;
-	accelspeed = accel*input_timelength*wishspeed;
-	if (accelspeed > addspeed)
-		accelspeed = addspeed;
+	/*Call accelerate before and after the actual move, with half the move each time. This reduces framerate dependance.*/
+	PM_Run_Acceleration(input_timelength/2, TRUE);
+	PM_Run_Move();
+	PM_Run_Acceleration(input_timelength/2, FALSE);
 
-	self.velocity = self.velocity + accelspeed*wishdir;
-};
+	/*NOTE: should clip to network precision here if lower than a float*/
 
-void() PMove_InAirAccelerate =
-{
-	vector hforward;
-	vector hright;
-	vector desireddir;
-	float desiredspeed;
+	self.angles = input_angles;
+	self.angles_x *= -0.333;
 
-	hforward = v_forward;
-	hforward_z = 0;
-	hforward = normalize(hforward);
-	hright = v_right;
-	hright_z = 0;
-	hright = normalize(hright);
-
-	desireddir = hforward*input_movevalues_x + hright*input_movevalues_y;
-	desiredspeed = vlen(desireddir);
-	desireddir = normalize(desireddir);
-
-	if (desiredspeed > movevars_maxspeed)
-		desiredspeed = movevars_maxspeed;
-
-	if (self.pmove_flags & PMF_ONGROUND)
+	/*touch buttons and stuff*/
+	if (trace_ent.touch)
 	{
-		if (input_buttons & 2)
-		{
-			if (!(self.pmove_flags & PMF_JUMP_HELD))
-			{
-				self.velocity_z += movevars_jumpheight;
-				self.pmove_flags (+) PMF_ONGROUND;
-			}
-		}
+		self = trace_ent;
+		other = pent;
+		self.touch();
+		self = pent;
 	}
-
-	if (self.pmove_flags & PMF_ONGROUND)
-	{
-		PMove_ApplyFriction();
-		PMove_Accelerate(desireddir, desiredspeed, movevars_accelerate);
-	}
-	else
-	{
-		//there's no friction in air...
-		if (desiredspeed > 30)
-			desiredspeed = 30;
-		PMove_Accelerate(desireddir, desiredspeed, movevars_accelerate);
-
-#ifdef HAVE_DOTGRAVITY
-		if (self.gravity)
-			self.velocity_z -= self.gravity * movevars_gravity * input_timelength;
-		else
-#endif
-			self.velocity_z -= movevars_gravity * input_timelength;
-	}
+	/*if we're standing in any triggers, touch them now*/
+	touchtriggers();
+	self = oself;
 };
 
-void() PMove_NoclipAccelerate =
-{
-	vector desireddir;
-	float desiredspeed;
+#undef time
 
-	desireddir = v_forward*input_movevalues_x + v_right*input_movevalues_y+v_up*input_movevalues_z;
-	desiredspeed = vlen(desireddir);
-	desireddir = normalize(desireddir);
-
-	PMove_ApplyFriction();
-	PMove_Accelerate(desireddir, desiredspeed, movevars_accelerate);
-};
-
-void() PMove_Categorise =
-{
-	//if we're moving up, we're not on the ground
-	if (self.velocity_z > 0)
-		self.pmove_flags (-) PMF_ONGROUND;
-	else
-	{
-		//don't know, maybe we are, maybe we're not
-		tracebox(self.origin, self.mins, self.maxs, self.origin-'0 0 1', false, self);
-		if (trace_fraction == 1 || trace_plane_normal_z < 0.7)
-		{
-			self.pmove_flags (-) PMF_ONGROUND;
-//			self.groundentity = trace_ent;
-		}
-		else
-			self.pmove_flags (+) PMF_ONGROUND;
-	}
-};
-
-void(entity ent) PMove =
-{
-	self = ent;
-	makevectors(input_angles);
-
-	if (!(input_buttons & PMF_JUMP_HELD))
-		self.pmove_flags (-) PMF_JUMP_HELD;
-
-	PMove_Categorise();
-
-	self.movetype = MOVETYPE_WALK;
-
-	switch(self.movetype)
-	{
-	case MOVETYPE_WALK:
-		PMove_InAirAccelerate();
-		PMove_Move();
-		break;
-	case MOVETYPE_FLY:
-		PMove_NoclipAccelerate();
-		PMove_Move();
-		break;
-	case MOVETYPE_NOCLIP:
-		PMove_NoclipAccelerate();
-		self.origin += self.velocity*input_timelength;
-		break;
-	case MOVETYPE_NONE:
-		break;
-	}
-};
-
-#endif

@@ -138,6 +138,7 @@ Stay facing the enemy
 */
 void() ai_face =
 {
+	self.SendFlags = FULLSEND;
 	self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
 	ChangeYaw ();
 };

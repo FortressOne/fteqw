@@ -37,46 +37,6 @@ $frame prowl_1 prowl_2 prowl_3 prowl_4 prowl_5 prowl_6 prowl_7 prowl_8
 $frame prowl_9 prowl_10 prowl_11 prowl_12 prowl_13 prowl_14 prowl_15 prowl_16
 $frame prowl_17 prowl_18 prowl_19 prowl_20 prowl_21 prowl_22 prowl_23 prowl_24
 
-float(float f) mapsoldieframetoplayer =
-{
-	switch(f)
-	{
-	case $stand1 .. $stand8 :
-		return $stand1;
-	case $death1 .. $deathc11 :
-		return $deatha1;
-	case $load1 .. $load11 :
-		return 0;	//never used!
-	case $death1 .. $deathc11 :
-		return $deatha1;
-	case $pain1 .. $painc13 :
-		return $pain1;
-	case $prowl_1 .. $prowl_24 :
-	case $run1 .. $run8 :
-		return $rockrun1;
-	case $shoot1 .. $shoot9 :
-		return $shotatt1;
-	}
-	return f;
-};
-
-float(entity to) SendSoldier =
-{
-	WriteByte(MSG_ENTITY, CLASS_PLAYER);
-	WriteByte(MSG_ENTITY, mapsoldieframetoplayer (self.frame));	//for clientside animation selection, in a way compatable with not having csqc.
-	WriteByte(MSG_ENTITY, self.angles_x*(256/360));
-	WriteByte(MSG_ENTITY, self.angles_y*(256/360));
-	WriteCoord(MSG_ENTITY, self.origin_x);
-	WriteCoord(MSG_ENTITY, self.origin_y);
-	WriteCoord(MSG_ENTITY, self.origin_z);
-	WriteShort(MSG_ENTITY, self.velocity_x*64);
-	WriteShort(MSG_ENTITY, self.velocity_y*64);
-	WriteShort(MSG_ENTITY, self.velocity_z*64);
-	WriteByte(MSG_ENTITY, 0);
-
-	return TRUE;
-};
-
 /*
 ==============================================================================
 SOLDIER CODE
@@ -263,7 +223,7 @@ void() army_die =
 // check for gib
 	if (self.health < -35)
 	{
-		ThrowCSQCGibs(GIB_SOLDIER);
+		ThrowCSQCGibs(self.modelclass);
 		return;
 	}
 
@@ -303,6 +263,7 @@ void() monster_army =
 
 	self.solid = SOLID_SLIDEBOX;
 	self.movetype = MOVETYPE_STEP;
+	self.modelclass = GIB_SOLDIER;
 
 	setmodel (self, "progs/soldier.mdl");
 
@@ -316,7 +277,7 @@ void() monster_army =
 	self.th_pain = army_pain;
 	self.th_die = army_die;
 
-	self.SendEntity = SendSoldier;
+	self.SendEntity = SendPlayer;
 
 	walkmonster_start ();
 };

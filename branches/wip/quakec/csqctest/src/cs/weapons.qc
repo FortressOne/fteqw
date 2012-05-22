@@ -11,9 +11,9 @@ void() RocketProject =
 	self.origin = self.source + self.velocity * (time - self.starttime);
 
 	//Do the trail thing, if possible.
-	trailparticles(particleeffectforname("tr_rocket"), self, self.origin, oldorg);
+	trailparticles(particleeffectnum("tr_rocket"), self, self.origin, oldorg);
 
-	adddynamiclight(self.origin, 400, '0 1 0');
+	dynamiclight_add(self.origin, 400, '0 1 0');
 };
 
 nonstatic void(float isnew) ParseRocketClass =
@@ -44,7 +44,7 @@ nonstatic void() NailProject =
 	self.origin = self.source + self.velocity * (time - self.starttime);
 
 	//Do the trail thing, if possible.
-	trailparticles(particleeffectforname("tr_nail"), self, self.origin, oldorg);
+	trailparticles(particleeffectnum("tr_nail"), self, self.origin, oldorg);
 
 //	adddynamiclight(self.origin, 100, '1 0 0');
 };
@@ -120,7 +120,7 @@ void() GibProject =
 	}
 
 	Movetype_Bounce();
-	trailparticles(particleeffectforname("tr_blood"), self, self.origin, oldorg);
+	trailparticles(particleeffectnum("tr_blood"), self, self.origin, oldorg);
 };
 
 void(string gibname, float dm, vector org) ThrowGib =
@@ -290,9 +290,9 @@ nonstatic void(float isnew) ParseExplosion =
 	{
 		sound (self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM);
 #ifdef WORKINDP
-		pointparticles(particleeffectforname("te_explosion"), org, '0 0 0', 1);
+		pointparticles(particleeffectnum("te_explosion"), org, '0 0 0', 1);
 #else
-		pointparticles(particleeffectforname("te_explosion"), org);
+		pointparticles(particleeffectnum("te_explosion"), org);
 #endif
 
 		e = world;//findradius(org, 120);

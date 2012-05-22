@@ -338,12 +338,6 @@ void() worldspawn =
 	lightstyle(63, "a");
 
 	infokeyworks = checkextension("QW_ENGINE");
-
-	serverusingcsqc = checkextension("EXT_CSQC") || checkextension("EXT_CSQC_1");
-#ifdef WORKINDP
-	if (isdp)
-		serverusingcsqc = TRUE;
-#endif
 };
 
 void() StartFrame =

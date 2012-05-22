@@ -35,7 +35,25 @@ void() spawn_trigger_push =
 	setmodel(self, self.model);
 	self.model = "";
 
-//	self.touch = cs_teleport_touch;
+	self.touch = cs_teleport_touch;
+};
+
+float(float isnew) RefreshPusher =
+{
+	if (self.origin != self.oldorigin || isnew)
+	{
+		self.oldorigin = self.origin;
+		setorigin(self, self.origin);
+		self.drawmask = MASK_NORMAL;
+		self.solid = SOLID_BSP;
+		self.movetype = MOVETYPE_PUSH;
+	}
+};
+
+void() spawn_pusher =
+{
+	deltalisten(self.model, RefreshPusher, RSES_NOROTATE);
+	remove(self);
 };
 
 void() spawn_worldspawn =
@@ -44,11 +62,13 @@ void() spawn_worldspawn =
 	remove(self);
 };
 
-float() parsenewmapentity =
+.float spawnflags;
+float(float inhibitspawnflags) parsenewmapentity =
 {
 	local string field, value;
 	local entity nent;
 	local void() spawnfunc;
+	local float inhibitspawnflags;
 	nent = spawn();
 
 	while (1)
@@ -61,14 +81,23 @@ float() parsenewmapentity =
 		{
 			if (!nent.classname)
 				break;
-			if (spawnfunc)
+
+			if (nent.spawnflags & inhibitspawnflags)
+			{
+				/*do nothing, just make sure the following blocks can't trigger*/
+				//print("inhibit ", nent.classname, "\n");
+			}
+			else if (spawnfunc)
 			{
 				self = nent;
 				spawnfunc();
 				return true;
 			}
+			else
+			{
+//				print("ignoring ", nent.classname, "\n");
+			}
 
-//			print("ignoring ", nent.classname, "\n");
 			//I don't know what you are, go away.
 			if (nent.classname!="")
 				strunzone(nent.classname);
@@ -94,6 +123,18 @@ float() parsenewmapentity =
 				spawnfunc = spawn_trigger_push;
 			if (value == "worldspawn")
 				spawnfunc = spawn_worldspawn;
+			if (value == "func_door")
+				spawnfunc = spawn_pusher;
+			if (value == "func_door_secret")
+				spawnfunc = spawn_pusher;
+			if (value == "func_wall")
+				spawnfunc = spawn_pusher;
+			if (value == "func_episodegate")
+				spawnfunc = spawn_pusher;
+			if (value == "func_bossgate")
+				spawnfunc = spawn_pusher;
+			if (value == "func_plat")
+				spawnfunc = spawn_pusher;
 			nent.classname = strzone(value);
 		}
 		else if (field == "targetname")
@@ -116,6 +157,8 @@ float() parsenewmapentity =
 			nent.model = value;
 		else if (field == "message")
 			nent.message = strzone(value);
+		else if (field == "spawnflags")
+			nent.spawnflags = stof(value);
 /*		else if (field == "light");
 		else if (field == "mangle");
 		else if (field == "killtarget");
@@ -128,7 +171,6 @@ float() parsenewmapentity =
 		else if (field == "worldtype");
 		else if (field == "sounds");
 		else if (field == "map");
-		else if (field == "spawnflags");
 		else if (field == "wait");
 		else if (field == "style");
 		else if (field == "health");
@@ -146,6 +188,21 @@ float() parsenewmapentity =
 void() CSQC_WorldLoaded =
 {
 	local string tok;
+	local float inhibitspawnflags;
+
+	/*this kinda needs to match the server*/
+	if (stof(serverkey("deathmatch")))
+		inhibitspawnflags = 2048/*SPAWNFLAG_NOT_DEATHMATCH*/;
+	else
+	{
+		inhibitspawnflags = stof(serverkey("skill"));
+		if (inhibitspawnflags < 0.5)
+			inhibitspawnflags = 256/*SPAWNFLAG_NOT_EASY*/;
+		else if (inhibitspawnflags > 1.5)
+			inhibitspawnflags = 1024/*SPAWNFLAG_NOT_HARD*/;
+		else
+			inhibitspawnflags = 512/*SPAWNFLAG_NOT_MEDIUM*/;
+	}
 
 	while (1)
 	{
@@ -160,7 +217,7 @@ void() CSQC_WorldLoaded =
 			return;
 		}
 		
-		if (!parsenewmapentity())
+		if (!parsenewmapentity(inhibitspawnflags))
 		{
 			print("bad entity data\n");
 			return;

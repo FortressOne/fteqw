@@ -222,6 +222,10 @@ void RotateVectorsByAngle_QC(vector angle)
 
 //
 #define skinforname(i,n) 0
+#else
+#define RotateVectorsByTag rotatevectorsbytag
+#define RotateVectorsByAngle rotatevectorsbyangle
+#define RotateVectorsByVectors rotatevectorsbyvectors
 #endif
 
 //end noisy maths.
@@ -254,13 +258,13 @@ void(entity ent, string soundname) sexedsound =
 	if (fileexists(full))
 	{
 		precache_sound(str);
-		soundp(self, CHAN_VOICE, str, 1, 1, 95 + random()*10);
+		sound(self, CHAN_VOICE, str, 1, 1, 95 + random()*10);
 	}
 	else
 	{
 		str = strcat("player/sarge/", soundname);	// :(
 		precache_sound(str);
-		soundp(self, CHAN_VOICE, str, 1, 1, 95 + random()*10);
+		sound(self, CHAN_VOICE, str, 1, 1, 95 + random()*10);
 	}
 };
 
@@ -645,7 +649,7 @@ nonstatic void() Anim_Draw =
 	ang_y = 0;
 	if (ang != '0 0 0')
 	{
-		adddynamiclight(self.origin, 400, ang);
+		dynamiclight_add(self.origin, 400, ang);
 	}
 
 	//if they're meant to be transparent, propogate that.
@@ -818,7 +822,7 @@ nonstatic float(string modname) Anim_ReadAnimationFile =
 		precache_model(strcat("models/players/", modname, "/lower.md3"));
 		precache_model(strcat("models/players/", modname, "/head.md3"));
 
-		anim_headmodel[modnum] = modelindex_for_name(strcat("models/players/", modname, "/head.md3"));
+		anim_headmodel[modnum] = getmodelindex(strcat("models/players/", modname, "/head.md3"));
 
 		//default general values
 		anim_gender[modnum] = GENDER_DEFAULT;

@@ -413,7 +413,11 @@ local vector	org;
 		if (!other.usingcsqc)
 			other.fixangle = 1;
 
+#ifdef OWNPLAYERPHYSICS
+		other.teleport_time = 0.7;	// qw-style
+#else
 		other.teleport_time = time + 0.7;
+#endif
 		if (other.flags & FL_ONGROUND)
 			other.flags = other.flags - FL_ONGROUND;
 		other.velocity = v_forward * 300;

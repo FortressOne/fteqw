@@ -11,11 +11,12 @@
 .float baseframe2;
 .float baseframe1time;
 .float baseframe2time;
-.float subblendfrac;
 .float baselerpfrac;
 
 //FTE_CSQC_HALFLIFE_MODELS
 .float bonecontrol1, bonecontrol2, bonecontrol3, bonecontrol4;
+.float subblendfrac;
+.float basesubblendfrac;
 
 #pragma noref 0
 

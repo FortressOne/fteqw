@@ -153,20 +153,20 @@ void()	enf_run6	=[	$run6  ,	enf_run7	] {ai_run(14);};
 void()	enf_run7	=[	$run7  ,	enf_run8	] {ai_run(7);};
 void()	enf_run8	=[	$run8  ,	enf_run1	] {ai_run(11);};
 
-void()	enf_atk1	=[	$attack1,	enf_atk2	] {ai_face();};
-void()	enf_atk2	=[	$attack2,	enf_atk3	] {ai_face();};
-void()	enf_atk3	=[	$attack3,	enf_atk4	] {ai_face();};
-void()	enf_atk4	=[	$attack4,	enf_atk5	] {ai_face();};
-void()	enf_atk5	=[	$attack5,	enf_atk6	] {ai_face();};
-void()	enf_atk6	=[	$attack6,	enf_atk7	] {enforcer_fire();};
-void()	enf_atk7	=[	$attack7,	enf_atk8	] {ai_face();};
-void()	enf_atk8	=[	$attack8,	enf_atk9	] {ai_face();};
-void()	enf_atk9	=[	$attack5,	enf_atk10	] {ai_face();};
-void()	enf_atk10	=[	$attack6,	enf_atk11	] {enforcer_fire();};
-void()	enf_atk11	=[	$attack7,	enf_atk12	] {ai_face();};
-void()	enf_atk12	=[	$attack8,	enf_atk13	] {ai_face();};
-void()	enf_atk13	=[	$attack9,	enf_atk14	] {ai_face();};
-void()	enf_atk14	=[	$attack10,	enf_run1	] {ai_face();
+void()	enf_atk1	=[	$attack1,	enf_atk2	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk2	=[	$attack2,	enf_atk3	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk3	=[	$attack3,	enf_atk4	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk4	=[	$attack4,	enf_atk5	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk5	=[	$attack5,	enf_atk6	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk6	=[	$attack6,	enf_atk7	] {self.SendFlags = FULLSEND;enforcer_fire();};
+void()	enf_atk7	=[	$attack7,	enf_atk8	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk8	=[	$attack8,	enf_atk9	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk9	=[	$attack5,	enf_atk10	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk10	=[	$attack6,	enf_atk11	] {self.SendFlags = FULLSEND;enforcer_fire();};
+void()	enf_atk11	=[	$attack7,	enf_atk12	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk12	=[	$attack8,	enf_atk13	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk13	=[	$attack9,	enf_atk14	] {self.SendFlags = FULLSEND;ai_face();};
+void()	enf_atk14	=[	$attack10,	enf_run1	] {self.SendFlags = FULLSEND;ai_face();
 SUB_CheckRefire (enf_atk1);
 };
 
@@ -340,6 +340,8 @@ void() monster_enforcer =
 	self.th_pain = enf_pain;
 	self.th_die = enf_die;
 	self.th_missile = enf_atk1;
+
+	self.SendEntity = SendPlayer;
 
 	walkmonster_start();
 };

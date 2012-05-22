@@ -4,7 +4,7 @@
 float(string s) checkextension = #99;	//this is core for csqc, but still an extension for ssqc
 
 
-void() clearscene			= #300; // (EXT_CSQC)
+void(float lplnum) clearscene			= #300; // (EXT_CSQC)
 void(float mask) addentities		= #301; //  (EXT_CSQC)
 void(entity ent) addentity		= #302; //  (EXT_CSQC)
 float(float property, ...) setviewprop	= #303; //  (EXT_CSQC)

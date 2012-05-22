@@ -70,11 +70,12 @@ void()	demon1_run4	=[	$run4,		demon1_run5	] {ai_run(20);};
 void()	demon1_run5	=[	$run5,		demon1_run6	] {ai_run(15);};
 void()	demon1_run6	=[	$run6,		demon1_run1	] {ai_run(36);};
 
-void()	demon1_jump1	=[	$leap1,		demon1_jump2	] {ai_face();};
-void()	demon1_jump2	=[	$leap2,		demon1_jump3	] {ai_face();};
-void()	demon1_jump3	=[	$leap3,		demon1_jump4	] {ai_face();};
+void()	demon1_jump1	=[	$leap1,		demon1_jump2	] {self.SendFlags = FULLSEND;ai_face();};
+void()	demon1_jump2	=[	$leap2,		demon1_jump3	] {self.SendFlags = FULLSEND;ai_face();};
+void()	demon1_jump3	=[	$leap3,		demon1_jump4	] {self.SendFlags = FULLSEND;ai_face();};
 void()	demon1_jump4	=[	$leap4,		demon1_jump5	]
 {
+	self.SendFlags = FULLSEND;
 	ai_face();
 	
 	self.touch = Demon_JumpTouch;
@@ -84,18 +85,26 @@ void()	demon1_jump4	=[	$leap4,		demon1_jump5	]
 	if (self.flags & FL_ONGROUND)
 		self.flags = self.flags - FL_ONGROUND;
 };
-void()	demon1_jump5	=[	$leap5,		demon1_jump6	] {};
-void()	demon1_jump6	=[	$leap6,		demon1_jump7	] {};
-void()	demon1_jump7	=[	$leap7,		demon1_jump8	] {};
-void()	demon1_jump8	=[ 	$leap8,		demon1_jump9	] {};
-void()	demon1_jump9	=[ 	$leap9,		demon1_jump10	] {};
-void()	demon1_jump10	=[ 	$leap10,	demon1_jump1	] {
-self.nextthink = time + 3;
+void()	demon1_jump5	=[	$leap5,		demon1_jump6	] {self.SendFlags = FULLSEND;};
+void()	demon1_jump6	=[	$leap6,		demon1_jump7	] {self.SendFlags = FULLSEND;};
+void()	demon1_jump7	=[	$leap7,		demon1_jump8	] {self.SendFlags = FULLSEND;};
+void()	demon1_jump8	=[ 	$leap8,		demon1_jump9	] {self.SendFlags = FULLSEND;};
+void()	demon1_jump9	=[ 	$leap9,		demon1_jump10	] {self.SendFlags = FULLSEND;};
+void()	demon1_jump10	=[ 	$leap10,	demon1_jump10b	] {self.SendFlags = FULLSEND;
+self.attack_finished = time + 3;
 // if three seconds pass, assume demon is stuck and jump again
 };
+void() demon1_jump10b =
+{
+	if (self.attack_finished < time)
+		demon1_jump1();
+	else
+		self.nextthink = time + 0.1;
+	self.SendFlags = FULLSEND;	//if nothing else happened, we animated.
+};
 
-void()	demon1_jump11	=[ 	$leap11,	demon1_jump12	] {};
-void()	demon1_jump12	=[ 	$leap12,	demon1_run1	] {};
+void()	demon1_jump11	=[ 	$leap11,	demon1_jump12	] {self.SendFlags = FULLSEND;};
+void()	demon1_jump12	=[ 	$leap12,	demon1_run1	] {self.SendFlags = FULLSEND;};
 
 
 void()	demon1_atta1	=[	$attacka1,		demon1_atta2	] {ai_charge(4);};
@@ -114,12 +123,12 @@ void()	demon1_atta13	=[	$attacka13,		demon1_atta14] {ai_charge(8);};
 void()	demon1_atta14	=[	$attacka14,		demon1_atta15] {ai_charge(4);};
 void()	demon1_atta15	=[	$attacka15,		demon1_run1] {ai_charge(4);};
 
-void()	demon1_pain1	=[	$pain1,		demon1_pain2	] {};
-void()	demon1_pain2	=[	$pain2,		demon1_pain3	] {};
-void()	demon1_pain3	=[	$pain3,		demon1_pain4	] {};
-void()	demon1_pain4	=[	$pain4,		demon1_pain5	] {};
-void()	demon1_pain5	=[	$pain5,		demon1_pain6	] {};
-void()	demon1_pain6	=[	$pain6,		demon1_run1	] {};
+void()	demon1_pain1	=[	$pain1,		demon1_pain2	] {self.SendFlags = FULLSEND;};
+void()	demon1_pain2	=[	$pain2,		demon1_pain3	] {self.SendFlags = FULLSEND;};
+void()	demon1_pain3	=[	$pain3,		demon1_pain4	] {self.SendFlags = FULLSEND;};
+void()	demon1_pain4	=[	$pain4,		demon1_pain5	] {self.SendFlags = FULLSEND;};
+void()	demon1_pain5	=[	$pain5,		demon1_pain6	] {self.SendFlags = FULLSEND;};
+void()	demon1_pain6	=[	$pain6,		demon1_run1	] {self.SendFlags = FULLSEND;};
 
 void(entity attacker, float damage)	demon1_pain =
 {
@@ -169,6 +178,10 @@ void() Demon_MeleeAttack =
 	demon1_atta1 ();
 };
 
+float(entity to, float sendflags) demon1_sendentity =
+{
+	return SendPlayer(to, sendflags);
+};
 
 /*QUAKED monster_demon1 (1 0 0) (-32 -32 -24) (32 32 64) Ambush
 
@@ -189,6 +202,8 @@ void() monster_demon1 =
 	precache_sound ("demon/dpain1.wav");
 	precache_sound ("demon/idle1.wav");
 	precache_sound ("demon/sight2.wav");
+
+	self.SendEntity = demon1_sendentity;
 
 	self.solid = SOLID_SLIDEBOX;
 	self.movetype = MOVETYPE_STEP;

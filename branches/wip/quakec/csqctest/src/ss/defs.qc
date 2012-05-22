@@ -499,10 +499,10 @@ float (entity e, float healamount, float ignore) T_Heal; // health function
 
 float(entity targ, entity inflictor) CanDamage;
 
-
-float serverusingcsqc;
-
-.float(entity to) SendEntity;
-.float SendFlags;
+//.float(entity to) SendEntity;
+//.float SendFlags;
 #define FULLSEND 0xffffff
 float	MSG_ENTITY		= 5;
+
+.float modelclass;
+float dimension_send;

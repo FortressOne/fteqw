@@ -363,7 +363,7 @@ void() makevolcano =
 	terrain_edit(5, self.origin, 256, 32/3);
 #endif
 };
-void()	s_explode1	= {self.think = s_explode1; if (self.frame >= 6) {remove(self); return;}makevolcano(); self.frame += 0.5; self.nextthink = time + 0.05;};
+void()	s_explode1	= {self.think = s_explode1; makevolcano(); self.frame += 0.5; self.nextthink = time + 0.05; if (self.frame >= 6) remove(self);};
 
 void() BecomeExplosion =
 {
@@ -599,13 +599,19 @@ void() GrenadeExplode =
 
 void() GrenadeTouch =
 {
+dprint("GrenadeTouch\n");
 	if (other == self.owner)
+{
+dprint("owner\n");
 		return;		// don't explode on owner
+}
 	if (other.takedamage == DAMAGE_AIM)
 	{
+dprint("takedamage=aim\n");
 		GrenadeExplode();
 		return;
 	}
+dprint("tink!\n");
 	sound (self, CHAN_WEAPON, "weapons/bounce.wav", 1, ATTN_NORM);	// bounce sound
 	if (self.velocity == '0 0 0')
 		self.avelocity = '0 0 0';
@@ -1291,6 +1297,63 @@ void() QuadCheat =
 	dprint ("quad cheat\n");
 };
 
+float(entity e, float s) getsurfacenumpoints = #434;
+vector(entity e, float s, float n) getsurfacepoint = #435;
+string(entity e, float s) getsurfacetexture = #437;
+float(entity e, vector p) getsurfacenearpoint = #438;
+
+
+void () funcdowncall =
+{
+        local entity nuketarg;
+        local vector skypos;
+        local float surfacenum;
+        local string texturename;
+        local string textureprefix;
+ 
+        traceline (self.origin, self.origin + v_forward * 1000, FALSE, self); // Targetting
+        if (trace_ent.flags & FL_MONSTER) // Checks if target is a monster
+        {
+                nuketarg = trace_ent;
+                dprint("targetpos: ");
+                dprint(vtos(nuketarg.origin));
+                dprint("\n");
+                traceline (nuketarg.origin, nuketarg.origin + '0 0 9001', TRUE, world);
+                skypos = trace_endpos;
+                dprint(" skypos: ");
+                dprint(vtos(skypos));
+                dprint("\n");
+                surfacenum = getsurfacenearpoint(world, skypos);
+                dprint(" surfacenum: ");
+                dprint(ftos(surfacenum));
+                dprint("\n");
+                texturename = getsurfacetexture(world, surfacenum);
+                dprint(" texturename: ");
+                dprint(texturename);
+                dprint("\n");
+                textureprefix = substring(texturename, 0, 3);
+                dprint(" textureprefix: ");
+                dprint(textureprefix);
+                dprint("\n");
+                if (textureprefix == "sky")
+                {
+                        centerprint (self, "Target locked! Time to call down the thunder...");
+                        // Kill the dumbass monster sitting out in the middle of nowhere code here
+                }
+                else
+                {
+                        centerprint (self, "Fresh out of visuals today are we?");
+                        // We have a strict NO NUCLEAR MISSLE AIRSTRIKE WHILE INDOORS policy in this army
+                }
+        }
+        else // If there is no monster there in the first place
+        {
+                centerprint (self, "As menacing as a wall may be I think you should find a VALID target...");
+                // There is no monster being targetted
+        }
+}
+
+
 /*
 ============
 ImpulseCommands
@@ -1310,6 +1373,32 @@ void() ImpulseCommands =
 		ServerflagsCommand ();
 	if (self.impulse == 12)
 		CycleWeaponReverseCommand ();
+
+	if (self.impulse == 200)
+	{
+		local string texname;
+		local float surf, points;
+
+		makevectors(self.v_angle);
+		traceline(self.origin, self.origin + v_forward*4096, TRUE, self);
+		particle (trace_endpos, '0 0 0', 200, 20);
+		surf = getsurfacenearpoint(trace_ent, trace_endpos);
+		texname = getsurfacetexture(trace_ent, surf);
+
+		sprint(self, "trace hit texture \"");
+		sprint(self, texname);
+		sprint(self, "\", surf ");
+		sprint(self, ftos(surf));
+		sprint(self, "\n");
+
+		points = getsurfacenumpoints(world, surf);
+		while(points--> 0)
+		{
+			particle(getsurfacepoint(world, surf, points), '0 0 0', 73, 20);
+		}
+
+funcdowncall();
+	}
 
 	if (self.impulse == 255)
 		QuadCheat ();

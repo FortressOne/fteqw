@@ -42,7 +42,7 @@ walkmove(angle, speed) primitive is all or nothing
 //
 entity	sight_entity;
 float	sight_entity_time;
-
+/*
 float(float v) anglemod =
 {
 	while (v >= 360)
@@ -50,7 +50,7 @@ float(float v) anglemod =
 	while (v < 0)
 		v = v + 360;
 	return v;
-};
+};*/
 
 /*
 ==============================================================================
@@ -123,6 +123,7 @@ local entity	temp;
 	if (!self.movetarget)
 	{
 		self.pausetime = time + 999999;
+		self.action = ACT_IDLE;
 		self.th_stand ();
 		return;
 	}
@@ -269,6 +270,7 @@ void() ChangeYaw =
 void() HuntTarget =
 {
 	self.goalentity = self.enemy;
+	self.action = ACT_RUN;
 	self.think = self.th_run;
 	self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
 	self.nextthink = time + 0.1;
@@ -477,7 +479,7 @@ The monster is walking it's beat
 void(float dist) ai_walk =
 {	
 	self.SendFlags = FULLSEND;	//if nothing else happened, we animated.
-
+dist = 3;
 	movedist = dist;
 	
 	if (self.classname == "monster_dragon")
@@ -502,13 +504,15 @@ The monster is staying in one place for a while, with slight angle turns
 */
 void() ai_stand =
 {
-	self.SendFlags = FULLSEND;	//if nothing else happened, we animated.
+//	self.SendFlags = FULLSEND;	//if nothing else happened, we animated.
 
 	if (FindTarget ())
 		return;
 	
 	if (time > self.pausetime)
 	{
+		self.SendFlags = FULLSEND;
+		self.action = ACT_WALK;
 		self.th_walk ();
 		return;
 	}
@@ -620,6 +624,7 @@ void() ai_run_melee =
 
 	if (FacingIdeal())
 	{
+		self.action = ACT_ATTACK1;
 		self.th_melee ();
 		self.attack_state = AS_STRAIGHT;
 	}
@@ -639,6 +644,7 @@ void() ai_run_missile =
 	ChangeYaw ();
 	if (FacingIdeal())
 	{
+		self.action = ACT_ATTACK2;
 		self.th_missile ();
 		self.attack_state = AS_STRAIGHT;
 	}
@@ -697,9 +703,15 @@ void(float dist) ai_run =
 		else
 		{
 			if (self.movetarget)
+			{
+				self.action = ACT_WALK;
 				self.th_walk ();
+			}
 			else
+			{
+				self.action = ACT_IDLE;
 				self.th_stand ();
+			}
 			return;
 		}
 	}

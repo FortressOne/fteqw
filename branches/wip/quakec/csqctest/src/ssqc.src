@@ -3,10 +3,13 @@
 optsssqc.qc
 optsall.qc
 
+fteextensions.qc
+
 ss/defs.qc
-ss/builtins.qc
-common/combuiltins.qc
-common/extensions.qc
+//ss/builtins.qc
+//common/combuiltins.qc
+//common/extensions.qc
+
 common/econstants.qc
 common/classes.qc
 
