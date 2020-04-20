@@ -4,9 +4,22 @@ RUN apt-get update \
  && apt-get install -y \
     build-essential \
     cmake \
+    libasound2-dev \
+    libbz2-dev \
+    libegl1-mesa-dev \
+    libfreetype6-dev \
+    libgnutls28-dev \
+    libjpeg-dev \
     libpng-dev \
-    libgl1-mesa-dev \
-    mesa-common-dev \
+    libqt5scintilla2-dev \
+    # libqwt-qt5-dev \
+    libvorbis-dev \
+    libvulkan-dev \
+    libwayland-dev \
+    libxcursor-dev \
+    libxkbcommon-dev \
+    libxrandr-dev \
+    libavdevice-dev \
  && rm -rf /var/lib/apt/lists/*
 COPY trunk/ /fteqw/
 RUN mkdir /tmp/build \
