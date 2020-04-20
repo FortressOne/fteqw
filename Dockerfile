@@ -12,6 +12,8 @@ RUN apt-get update \
     libgnutls28-dev \
     libjpeg-dev \
     libpng-dev \
+    libqt5scintilla2-dev \
+    # libqwt-qt5-dev \
     libvorbis-dev \
     libvulkan-dev \
     libwayland-dev \
