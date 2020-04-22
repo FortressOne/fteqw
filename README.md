@@ -4,3 +4,5 @@
       git svn rebase
 - Push changes to github
       git push
+- Compile with Docker
+      docker build --tag=fteqw .

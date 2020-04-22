@@ -7,12 +7,11 @@ RUN apt-get update \
     libasound2-dev \
     libbz2-dev \
     libegl1-mesa-dev \
+    libbullet-dev \
     libfreetype6-dev \
     libgnutls28-dev \
     libjpeg-dev \
     libpng-dev \
-    libqt5scintilla2-dev \
-    # libqwt-qt5-dev \
     libvorbis-dev \
     libvulkan-dev \
     libwayland-dev \
