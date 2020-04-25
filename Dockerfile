@@ -21,6 +21,5 @@ RUN apt-get update \
     libxrandr-dev \
     libavdevice-dev \
  && rm -rf /var/lib/apt/lists/*
-# COPY trunk/ /fteqw/
 COPY entrypoint.sh/ /tmp/
 CMD ["/tmp/entrypoint.sh"]
