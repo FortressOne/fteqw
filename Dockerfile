@@ -1,5 +1,6 @@
-FROM debian:oldstable
-WORKDIR /fteqw
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
+WORKDIR /fteqw/
 RUN apt-get update \
  && apt-get install -y \
     build-essential \
@@ -7,7 +8,7 @@ RUN apt-get update \
     libasound2-dev \
     libbz2-dev \
     libegl1-mesa-dev \
-    libbullet-dev \
+    # libbullet-dev \
     libfreetype6-dev \
     libgnutls28-dev \
     libjpeg-dev \
@@ -20,8 +21,6 @@ RUN apt-get update \
     libxrandr-dev \
     libavdevice-dev \
  && rm -rf /var/lib/apt/lists/*
-COPY trunk/ /fteqw/
-RUN mkdir /tmp/build \
- && cd /tmp/build \
- && cmake /fteqw/ \
- && make
+# COPY trunk/ /fteqw/
+COPY entrypoint.sh/ /tmp/
+CMD ["/tmp/entrypoint.sh"]
